@@ -1,25 +1,39 @@
-import { List, showToast, Toast, ActionPanel, Action, Icon } from "@raycast/api";
+import {
+  List,
+  Grid,
+  showToast,
+  Toast,
+  ActionPanel,
+  Action,
+  Icon,
+  Color,
+  Detail,
+  getPreferenceValues,
+} from "@raycast/api";
 import { useEffect, useState } from "react";
+import { useCachedState, usePromise } from "@raycast/utils";
 import { LIFXClientManager } from "./lib/lifx-client";
 import { LIFXLight } from "./lib/types";
 import { LightListItem } from "./components/LightListItem";
+import { LightGridItem } from "./components/LightGridItem";
+
+type ViewMode = "list" | "grid";
+
+interface Preferences {
+  httpApiToken?: string;
+  defaultFadeDuration?: string;
+  lanTimeout?: string;
+  enableLanDiscovery?: boolean;
+}
 
 export default function Command() {
   const [lights, setLights] = useState<LIFXLight[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [viewMode, setViewMode] = useCachedState<ViewMode>("view-mode", "list");
   const [client] = useState(() => new LIFXClientManager());
+  const preferences = getPreferenceValues<Preferences>();
 
-  useEffect(() => {
-    loadLights();
-
-    return () => {
-      client.destroy();
-    };
-  }, []);
-
-  async function loadLights() {
-    try {
-      setIsLoading(true);
+  const { isLoading, revalidate } = usePromise(
+    async () => {
       await client.initialize();
       const discoveredLights = await client.discoverLights();
       setLights(discoveredLights);
@@ -37,16 +51,26 @@ export default function Command() {
           title: `Found ${discoveredLights.length} light${discoveredLights.length !== 1 ? "s" : ""}`,
         });
       }
-    } catch (error) {
-      showToast({
-        style: Toast.Style.Failure,
-        title: "Failed to discover lights",
-        message: error instanceof Error ? error.message : String(error),
-      });
-    } finally {
-      setIsLoading(false);
+
+      return discoveredLights;
+    },
+    [],
+    {
+      onError: (error) => {
+        showToast({
+          style: Toast.Style.Failure,
+          title: "Failed to discover lights",
+          message: error instanceof Error ? error.message : String(error),
+        });
+      },
     }
-  }
+  );
+
+  useEffect(() => {
+    return () => {
+      client.destroy();
+    };
+  }, []);
 
   async function refreshLights() {
     try {
@@ -81,7 +105,7 @@ export default function Command() {
         title: `All lights ${action === "on" ? "turned on" : action === "off" ? "turned off" : `set to ${value}%`}`,
       });
       // Wait for bulbs to broadcast new state before refreshing UI
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      await new Promise((resolve) => setTimeout(resolve, 1500));
       await refreshLights();
     } catch (error) {
       showToast({
@@ -92,6 +116,122 @@ export default function Command() {
     }
   }
 
+  const toggleViewMode = () => {
+    setViewMode(viewMode === "list" ? "grid" : "list");
+  };
+
+  const commonActions = (
+    <ActionPanel.Section>
+      <Action
+        title={`Switch to ${viewMode === "list" ? "Grid" : "List"} View`}
+        icon={viewMode === "list" ? Icon.Grid : Icon.List}
+        onAction={toggleViewMode}
+        shortcut={{ modifiers: ["cmd"], key: "v" }}
+      />
+      <Action
+        title="Refresh Lights"
+        icon={Icon.ArrowClockwise}
+        onAction={refreshLights}
+        shortcut={{ modifiers: ["cmd"], key: "r" }}
+      />
+    </ActionPanel.Section>
+  );
+
+  const allLightsActions = (
+    <>
+      <ActionPanel.Section title="All Lights">
+        <Action
+          title="Turn All On"
+          icon={Icon.Power}
+          onAction={() => controlAllLights("on")}
+          shortcut={{ modifiers: ["cmd", "shift"], key: "o" }}
+        />
+        <Action
+          title="Turn All Off"
+          icon={Icon.PowerOff}
+          onAction={() => controlAllLights("off")}
+          shortcut={{ modifiers: ["cmd", "shift"], key: "x" }}
+        />
+      </ActionPanel.Section>
+      <ActionPanel.Section title="Set All Brightness">
+        <Action
+          title="All to 100%"
+          icon={Icon.Sun}
+          onAction={() => controlAllLights("brightness", 100)}
+          shortcut={{ modifiers: ["cmd", "shift"], key: "1" }}
+        />
+        <Action
+          title="All to 75%"
+          icon={Icon.Sun}
+          onAction={() => controlAllLights("brightness", 75)}
+          shortcut={{ modifiers: ["cmd", "shift"], key: "2" }}
+        />
+        <Action
+          title="All to 50%"
+          icon={Icon.Circle}
+          onAction={() => controlAllLights("brightness", 50)}
+          shortcut={{ modifiers: ["cmd", "shift"], key: "3" }}
+        />
+        <Action
+          title="All to 25%"
+          icon={Icon.Circle}
+          onAction={() => controlAllLights("brightness", 25)}
+          shortcut={{ modifiers: ["cmd", "shift"], key: "4" }}
+        />
+      </ActionPanel.Section>
+      {commonActions}
+    </>
+  );
+
+  if (viewMode === "grid") {
+    return (
+      <Grid
+        isLoading={isLoading}
+        columns={4}
+        aspectRatio="1"
+        fit={Grid.Fit.Fill}
+        searchBarPlaceholder="Search lights..."
+        actions={
+          lights.length === 0 && !isLoading ? (
+            <ActionPanel>
+              <Action title="Refresh" icon={Icon.ArrowClockwise} onAction={refreshLights} />
+              {commonActions}
+            </ActionPanel>
+          ) : undefined
+        }
+      >
+        {lights.length === 0 && !isLoading ? (
+          <Grid.EmptyView
+            title="No LIFX Lights Found"
+            description="Make sure your lights are powered on and connected to the network"
+            icon={Icon.LightBulb}
+          />
+        ) : (
+          <>
+            {lights.length > 1 && (
+              <Grid.Section title="Quick Actions">
+                <Grid.Item
+                  title="All Lights"
+                  subtitle={`${lights.length} total`}
+                  content={{
+                    source: Icon.LightBulb,
+                    tintColor: lights.every((l: LIFXLight) => l.power) ? Color.Green : Color.SecondaryText,
+                  }}
+                  actions={<ActionPanel>{allLightsActions}</ActionPanel>}
+                />
+              </Grid.Section>
+            )}
+            <Grid.Section title="Your Lights" subtitle={`${lights.length} light${lights.length !== 1 ? "s" : ""}`}>
+              {lights.map((light: LIFXLight) => (
+                <LightGridItem key={light.id} light={light} client={client} onUpdate={refreshLights} />
+              ))}
+            </Grid.Section>
+          </>
+        )}
+      </Grid>
+    );
+  }
+
   return (
     <List
       isLoading={isLoading}
@@ -100,6 +240,7 @@ export default function Command() {
         lights.length === 0 && !isLoading ? (
           <ActionPanel>
             <Action title="Refresh" icon={Icon.ArrowClockwise} onAction={refreshLights} />
+            {commonActions}
           </ActionPanel>
         ) : undefined
       }
@@ -116,61 +257,19 @@ export default function Command() {
             <List.Section title="All Lights">
               <List.Item
                 title={`Control All Lights (${lights.length} total)`}
-                icon={Icon.LightBulb}
-                accessories={[{ text: "Quick actions for all lights" }]}
-                actions={
-                  <ActionPanel>
-                    <ActionPanel.Section title="All Lights">
-                      <Action
-                        title="Turn All On"
-                        icon={Icon.Power}
-                        onAction={() => controlAllLights("on")}
-                        shortcut={{ modifiers: ["cmd", "shift"], key: "o" }}
-                      />
-                      <Action
-                        title="Turn All Off"
-                        icon={Icon.PowerOff}
-                        onAction={() => controlAllLights("off")}
-                        shortcut={{ modifiers: ["cmd", "shift"], key: "x" }}
-                      />
-                    </ActionPanel.Section>
-                    <ActionPanel.Section title="Set All Brightness">
-                      <Action
-                        title="All to 100%"
-                        onAction={() => controlAllLights("brightness", 100)}
-                        shortcut={{ modifiers: ["cmd", "shift"], key: "1" }}
-                      />
-                      <Action
-                        title="All to 75%"
-                        onAction={() => controlAllLights("brightness", 75)}
-                        shortcut={{ modifiers: ["cmd", "shift"], key: "2" }}
-                      />
-                      <Action
-                        title="All to 50%"
-                        onAction={() => controlAllLights("brightness", 50)}
-                        shortcut={{ modifiers: ["cmd", "shift"], key: "3" }}
-                      />
-                      <Action
-                        title="All to 25%"
-                        onAction={() => controlAllLights("brightness", 25)}
-                        shortcut={{ modifiers: ["cmd", "shift"], key: "4" }}
-                      />
-                    </ActionPanel.Section>
-                    <ActionPanel.Section>
-                      <Action
-                        title="Refresh Lights"
-                        icon={Icon.ArrowClockwise}
-                        onAction={refreshLights}
-                        shortcut={{ modifiers: ["cmd"], key: "r" }}
-                      />
-                    </ActionPanel.Section>
-                  </ActionPanel>
-                }
+                icon={{ source: Icon.LightBulb, tintColor: lights.every((l: LIFXLight) => l.power) ? Color.Green : Color.Red }}
+                accessories={[
+                  {
+                    text: `${lights.filter((l: LIFXLight) => l.power).length}/${lights.length} On`,
+                    icon: { source: Icon.CircleFilled, tintColor: Color.Blue },
+                  },
+                ]}
+                actions={<ActionPanel>{allLightsActions}</ActionPanel>}
               />
             </List.Section>
           )}
-          <List.Section title="Individual Lights">
-            {lights.map((light) => (
+          <List.Section title="Individual Lights" subtitle={`${lights.length} light${lights.length !== 1 ? "s" : ""}`}>
+            {lights.map((light: LIFXLight) => (
               <LightListItem key={light.id} light={light} client={client} onUpdate={refreshLights} />
             ))}
           </List.Section>
