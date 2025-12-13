@@ -89,75 +89,51 @@ export default function Command() {
               <List.Item.Detail
                 metadata={
                   <List.Item.Detail.Metadata>
-                    <List.Item.Detail.Metadata.Label title="Profile Name" text={profile.name} />
+                    <List.Item.Detail.Metadata.Label title="Profile Name" text={profile.name} icon={Icon.SaveDocument} />
                     {profile.description && (
-                      <Action.CopyToClipboard
-                        title="Copy Description"
-                        content={profile.description}
-                        shortcut={{ modifiers: ["cmd", "shift"], key: "c" }}
-                      />
+                      <List.Item.Detail.Metadata.Label title="Description" text={profile.description} />
                     )}
-                  </ActionPanel.Section>
-                  <ActionPanel.Section>
-                    <Action
-                      title="Refresh"
-                      icon={Icon.ArrowClockwise}
-                      onAction={revalidate}
-                      shortcut={{ modifiers: ["cmd"], key: "r" }}
+                    {profile.tags && profile.tags.length > 0 && (
+                      <List.Item.Detail.Metadata.TagList title="Tags">
+                        {profile.tags.map((tag: string) => (
+                          <List.Item.Detail.Metadata.TagList.Item key={tag} text={tag} color={Color.Blue} />
+                        ))}
+                      </List.Item.Detail.Metadata.TagList>
+                    )}
+                    <List.Item.Detail.Metadata.Separator />
+                    <List.Item.Detail.Metadata.Label
+                      title="Created"
+                      text={new Date(profile.createdAt).toLocaleString()}
+                      icon={Icon.Calendar}
                     />
-                  </ActionPanel.Section>
-                </ActionPanel>
-              }
-              detail={
-                <List.Item.Detail
-                  metadata={
-                    <List.Item.Detail.Metadata>
-                      <List.Item.Detail.Metadata.Label title="Profile Name" text={profile.name} icon={Icon.SaveDocument} />
-                      {profile.description && (
-                        <List.Item.Detail.Metadata.Label title="Description" text={profile.description} />
-                      )}
-                      {profile.tags && profile.tags.length > 0 && (
-                        <List.Item.Detail.Metadata.TagList title="Tags">
-                          {profile.tags.map((tag: string) => (
-                            <List.Item.Detail.Metadata.TagList.Item key={tag} text={tag} color={Color.Blue} />
-                          ))}
-                        </List.Item.Detail.Metadata.TagList>
-                      )}
-                      <List.Item.Detail.Metadata.Separator />
+                    <List.Item.Detail.Metadata.Label
+                      title="Last Updated"
+                      text={new Date(profile.updatedAt).toLocaleString()}
+                      icon={Icon.Clock}
+                    />
+                    <List.Item.Detail.Metadata.Separator />
+                    <List.Item.Detail.Metadata.Label
+                      title="Lights"
+                      text={`${profile.lights.length} total`}
+                      icon={Icon.LightBulb}
+                    />
+                    {profile.lights.map((light: ProfileLightState) => (
                       <List.Item.Detail.Metadata.Label
-                        title="Created"
-                        text={new Date(profile.createdAt).toLocaleString()}
-                        icon={Icon.Calendar}
+                        key={light.lightId}
+                        title={light.lightLabel}
+                        text={`${light.power ? "On" : "Off"} • ${light.brightness}% • ${light.hue}° • ${light.kelvin}K`}
+                        icon={{
+                          source: Icon.CircleFilled,
+                          tintColor: light.power ? Color.Green : Color.Red,
+                        }}
                       />
-                      <List.Item.Detail.Metadata.Label
-                        title="Last Updated"
-                        text={new Date(profile.updatedAt).toLocaleString()}
-                        icon={Icon.Clock}
-                      />
-                      <List.Item.Detail.Metadata.Separator />
-                      <List.Item.Detail.Metadata.Label
-                        title="Lights"
-                        text={`${profile.lights.length} total`}
-                        icon={Icon.LightBulb}
-                      />
-                      {profile.lights.map((light: ProfileLightState) => (
-                        <List.Item.Detail.Metadata.Label
-                          key={light.lightId}
-                          title={light.lightLabel}
-                          text={`${light.power ? "On" : "Off"} • ${light.brightness}% • ${light.hue}° • ${light.kelvin}K`}
-                          icon={{
-                            source: Icon.CircleFilled,
-                            tintColor: light.power ? Color.Green : Color.Red,
-                          }}
-                        />
-                      ))}
-                    </List.Item.Detail.Metadata>
-                  }
-                />
-              }
-            />
-          );
-        })
+                    ))}
+                  </List.Item.Detail.Metadata>
+                }
+              />
+            }
+          />
+        ))
       )}
     </List>
   );
