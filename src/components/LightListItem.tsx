@@ -11,7 +11,6 @@ interface Props {
   light: LIFXLight;
   client: LIFXClientManager;
   onUpdate: () => void;
-  extraActions?: React.ReactNode;
 }
 
 const COLOR_SCENES = [
@@ -301,7 +300,7 @@ ${light.saturation > 0 ? `**Color Mode:** ${light.hue}° hue at ${light.saturati
   );
 }
 
-export function LightListItem({ light, client, onUpdate, extraActions }: Props) {
+export function LightListItem({ light, client, onUpdate }: Props) {
   console.log(`[LightListItem] ${light.label}: H:${light.hue}° S:${light.saturation}% B:${light.brightness}%`);
 
   // Determine icon color based on light state
@@ -514,8 +513,6 @@ export function LightListItem({ light, client, onUpdate, extraActions }: Props) 
               shortcut={{ modifiers: ["ctrl", "shift"], key: "l" }}
             />
           </ActionPanel.Section>
-
-          {extraActions}
         </ActionPanel>
       }
     />
