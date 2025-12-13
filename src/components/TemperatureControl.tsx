@@ -27,12 +27,14 @@ export function TemperatureControl({ light, client, onComplete }: Props) {
     const kelvinValue = parseInt(kelvin);
 
     try {
+      // Only set kelvin and saturation - brightness will be preserved automatically
       await client.controlLight(light.id, {
         kelvin: kelvinValue,
         saturation: 0,
-        // Don't pass brightness - let the client preserve current state
       });
       showToast({ style: Toast.Style.Success, title: `Set ${light.label} to ${kelvinValue}K` });
+      // Wait for bulb to broadcast new state before refreshing UI
+      await new Promise(resolve => setTimeout(resolve, 1500));
       onComplete();
       popToRoot();
     } catch (error) {

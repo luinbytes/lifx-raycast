@@ -108,6 +108,8 @@ function LoadProfileList({ light, client, onLoad }: { light: LIFXLight; client: 
         kelvin: lightState.kelvin,
       });
       showToast({ style: Toast.Style.Success, title: `Applied profile "${profile.name}"` });
+      // Wait for bulb to broadcast new state before refreshing UI
+      await new Promise(resolve => setTimeout(resolve, 1500));
       onLoad();
       popToRoot();
     } catch (error) {
@@ -158,7 +160,9 @@ export function LightListItem({ light, client, onUpdate }: Props) {
         style: Toast.Style.Success,
         title: `Turned ${!light.power ? "on" : "off"} ${light.label}`,
       });
-      onUpdate();
+      // Wait for bulb to broadcast new state before refreshing UI
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      await onUpdate();
     } catch (error) {
       showToast({
         style: Toast.Style.Failure,
@@ -172,7 +176,9 @@ export function LightListItem({ light, client, onUpdate }: Props) {
     try {
       await client.controlLight(light.id, { brightness: value });
       showToast({ style: Toast.Style.Success, title: `Set ${light.label} to ${value}%` });
-      onUpdate();
+      // Wait for bulb to broadcast new state before refreshing UI
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      await onUpdate();
     } catch (error) {
       showToast({
         style: Toast.Style.Failure,
@@ -184,13 +190,15 @@ export function LightListItem({ light, client, onUpdate }: Props) {
 
   async function setWhiteTemperature(kelvin: number) {
     try {
+      // Only set kelvin and saturation - brightness will be preserved automatically
       await client.controlLight(light.id, {
         kelvin,
         saturation: 0,
-        brightness: light.brightness, // Preserve brightness!
       });
       showToast({ style: Toast.Style.Success, title: `Set ${light.label} to ${kelvin}K` });
-      onUpdate();
+      // Wait for bulb to broadcast new state before refreshing UI
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      await onUpdate();
     } catch (error) {
       showToast({
         style: Toast.Style.Failure,
@@ -209,7 +217,9 @@ export function LightListItem({ light, client, onUpdate }: Props) {
         kelvin: scene.kelvin,
       });
       showToast({ style: Toast.Style.Success, title: `Applied "${scene.name}" scene` });
-      onUpdate();
+      // Wait for bulb to broadcast new state before refreshing UI
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      await onUpdate();
     } catch (error) {
       showToast({
         style: Toast.Style.Failure,

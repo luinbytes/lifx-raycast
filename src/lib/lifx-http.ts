@@ -32,22 +32,33 @@ export class LIFXHttpClient {
   async control(lightId: string, control: LightControl): Promise<void> {
     const duration = (control.duration ?? 1000) / 1000; // Convert to seconds
 
+    // Handle power separately
     if (control.power !== undefined) {
       await this.client.power.light(lightId, control.power ? "on" : "off", duration);
     }
 
+    // For color changes, get fresh state to preserve values we're not changing
     if (
       control.hue !== undefined ||
       control.saturation !== undefined ||
       control.brightness !== undefined ||
       control.kelvin !== undefined
     ) {
+      // Get current light state to preserve unchanged values
+      const lights = await this.client.get.all();
+      const currentLight = lights.find((l: any) => l.id === lightId);
+
+      if (!currentLight) {
+        throw new Error("Light not found");
+      }
+
       const colorConfig: any = { duration };
 
-      if (control.hue !== undefined) colorConfig.hue = control.hue;
-      if (control.saturation !== undefined) colorConfig.saturation = control.saturation / 100;
-      if (control.brightness !== undefined) colorConfig.brightness = control.brightness / 100;
-      if (control.kelvin !== undefined) colorConfig.kelvin = control.kelvin;
+      // Preserve all values, only override what's specified
+      colorConfig.hue = control.hue ?? Math.round(currentLight.color.hue);
+      colorConfig.saturation = (control.saturation ?? Math.round(currentLight.color.saturation * 100)) / 100;
+      colorConfig.brightness = (control.brightness ?? Math.round(currentLight.brightness * 100)) / 100;
+      colorConfig.kelvin = control.kelvin ?? currentLight.color.kelvin;
 
       await this.client.color.light(lightId, colorConfig);
     }

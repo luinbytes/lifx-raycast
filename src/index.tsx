@@ -80,6 +80,8 @@ export default function Command() {
         style: Toast.Style.Success,
         title: `All lights ${action === "on" ? "turned on" : action === "off" ? "turned off" : `set to ${value}%`}`,
       });
+      // Wait for bulbs to broadcast new state before refreshing UI
+      await new Promise(resolve => setTimeout(resolve, 1500));
       await refreshLights();
     } catch (error) {
       showToast({

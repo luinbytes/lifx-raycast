@@ -28,12 +28,14 @@ export function ColorPicker({ light, client, onComplete }: Props) {
     const preset = COLOR_PRESETS[parseInt(selectedColor)];
 
     try {
+      // Only set hue and saturation - brightness will be preserved automatically
       await client.controlLight(light.id, {
         hue: preset.hue,
         saturation: preset.saturation,
-        // Don't pass brightness - let the client preserve current state
       });
       showToast({ style: Toast.Style.Success, title: `Set ${light.label} to ${preset.label}` });
+      // Wait for bulb to broadcast new state before refreshing UI
+      await new Promise(resolve => setTimeout(resolve, 1500));
       onComplete();
       popToRoot();
     } catch (error) {

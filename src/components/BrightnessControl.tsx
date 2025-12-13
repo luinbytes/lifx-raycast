@@ -37,6 +37,8 @@ export function BrightnessControl({ light, client, onComplete }: Props) {
     try {
       await client.controlLight(light.id, { brightness: brightnessValue });
       showToast({ style: Toast.Style.Success, title: `Set ${light.label} to ${brightnessValue}%` });
+      // Wait for bulb to broadcast new state before refreshing UI
+      await new Promise(resolve => setTimeout(resolve, 1500));
       onComplete();
       popToRoot();
     } catch (error) {

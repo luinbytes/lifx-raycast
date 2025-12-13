@@ -78,32 +78,23 @@ export class LIFXClientManager {
     return this.connectionState.activeLights;
   }
 
+  async getLightState(lightId: string): Promise<LIFXLight | null> {
+    // Force fresh discovery to get current state
+    await this.discoverLights();
+    return this.connectionState.activeLights.find((l) => l.id === lightId) || null;
+  }
+
   async controlLight(lightId: string, control: LightControl): Promise<void> {
     const light = this.connectionState.activeLights.find((l) => l.id === lightId);
     if (!light) throw new Error("Light not found");
 
-    // If we're changing color/temp but not brightness, preserve current brightness
-    const needsBrightnessPreservation =
-      control.brightness === undefined &&
-      (control.hue !== undefined || control.saturation !== undefined || control.kelvin !== undefined);
-
-    let finalControl = control;
-    if (needsBrightnessPreservation) {
-      // Get fresh light state to preserve current brightness
-      const currentLights = await this.discoverLights();
-      const currentLight = currentLights.find((l) => l.id === lightId);
-      if (currentLight && currentLight.brightness > 0) {
-        finalControl = { ...control, brightness: currentLight.brightness };
-      }
-    }
-
     // Try preferred source first, fallback to alternative
     try {
       if (light.source === "lan" && this.lanClient) {
-        await this.lanClient.control(lightId, finalControl);
+        await this.lanClient.control(lightId, control);
         return;
       } else if (this.httpClient) {
-        await this.httpClient.control(lightId, finalControl);
+        await this.httpClient.control(lightId, control);
         return;
       }
     } catch (error) {
@@ -111,9 +102,9 @@ export class LIFXClientManager {
 
       // Fallback to alternative source
       if (light.source === "lan" && this.httpClient) {
-        await this.httpClient.control(lightId, finalControl);
+        await this.httpClient.control(lightId, control);
       } else if (light.source === "http" && this.lanClient) {
-        await this.lanClient.control(lightId, finalControl);
+        await this.lanClient.control(lightId, control);
       } else {
         throw error;
       }
