@@ -15,6 +15,7 @@ export interface LightProfile {
   id: string;
   name: string;
   description?: string;
+  tags?: string[];
   createdAt: string;
   updatedAt: string;
   lights: ProfileLightState[];

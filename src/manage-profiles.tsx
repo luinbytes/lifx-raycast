@@ -1,31 +1,30 @@
-import { List, ActionPanel, Action, Icon, showToast, Toast, Alert, confirmAlert } from "@raycast/api";
-import { useEffect, useState } from "react";
+import { List, ActionPanel, Action, Icon, showToast, Toast, Alert, confirmAlert, Color } from "@raycast/api";
+import { useState } from "react";
+import { usePromise } from "@raycast/utils";
 import { ProfileStorage } from "./lib/storage";
-import { LightProfile } from "./lib/types";
+import { LightProfile, ProfileLightState } from "./lib/types";
 
 export default function Command() {
   const [profiles, setProfiles] = useState<LightProfile[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [storage] = useState(() => new ProfileStorage());
 
-  useEffect(() => {
-    loadProfiles();
-  }, []);
-
-  async function loadProfiles() {
-    try {
+  const { isLoading, revalidate } = usePromise(
+    async () => {
       const savedProfiles = await storage.getProfiles();
       setProfiles(savedProfiles);
-    } catch (error) {
-      showToast({
-        style: Toast.Style.Failure,
-        title: "Failed to load profiles",
-        message: error instanceof Error ? error.message : String(error),
-      });
-    } finally {
-      setIsLoading(false);
+      return savedProfiles;
+    },
+    [],
+    {
+      onError: (error) => {
+        showToast({
+          style: Toast.Style.Failure,
+          title: "Failed to load profiles",
+          message: error instanceof Error ? error.message : String(error),
+        });
+      },
     }
-  }
+  );
 
   async function deleteProfile(profile: LightProfile) {
     const confirmed = await confirmAlert({
@@ -39,7 +38,7 @@ export default function Command() {
     try {
       await storage.deleteProfile(profile.id);
       showToast({ style: Toast.Style.Success, title: `Deleted profile "${profile.name}"` });
-      await loadProfiles();
+      await revalidate();
     } catch (error) {
       showToast({
         style: Toast.Style.Failure,
@@ -92,32 +91,73 @@ export default function Command() {
                   <List.Item.Detail.Metadata>
                     <List.Item.Detail.Metadata.Label title="Profile Name" text={profile.name} />
                     {profile.description && (
-                      <List.Item.Detail.Metadata.Label title="Description" text={profile.description} />
-                    )}
-                    <List.Item.Detail.Metadata.Separator />
-                    <List.Item.Detail.Metadata.Label
-                      title="Created"
-                      text={new Date(profile.createdAt).toLocaleString()}
-                    />
-                    <List.Item.Detail.Metadata.Label
-                      title="Last Updated"
-                      text={new Date(profile.updatedAt).toLocaleString()}
-                    />
-                    <List.Item.Detail.Metadata.Separator />
-                    <List.Item.Detail.Metadata.Label title="Lights" text={`${profile.lights.length} total`} />
-                    {profile.lights.map((light) => (
-                      <List.Item.Detail.Metadata.Label
-                        key={light.lightId}
-                        title={light.lightLabel}
-                        text={`${light.power ? "On" : "Off"} • ${light.brightness}% • ${light.hue}° • ${light.kelvin}K`}
+                      <Action.CopyToClipboard
+                        title="Copy Description"
+                        content={profile.description}
+                        shortcut={{ modifiers: ["cmd", "shift"], key: "c" }}
                       />
-                    ))}
-                  </List.Item.Detail.Metadata>
-                }
-              />
-            }
-          />
-        ))
+                    )}
+                  </ActionPanel.Section>
+                  <ActionPanel.Section>
+                    <Action
+                      title="Refresh"
+                      icon={Icon.ArrowClockwise}
+                      onAction={revalidate}
+                      shortcut={{ modifiers: ["cmd"], key: "r" }}
+                    />
+                  </ActionPanel.Section>
+                </ActionPanel>
+              }
+              detail={
+                <List.Item.Detail
+                  metadata={
+                    <List.Item.Detail.Metadata>
+                      <List.Item.Detail.Metadata.Label title="Profile Name" text={profile.name} icon={Icon.SaveDocument} />
+                      {profile.description && (
+                        <List.Item.Detail.Metadata.Label title="Description" text={profile.description} />
+                      )}
+                      {profile.tags && profile.tags.length > 0 && (
+                        <List.Item.Detail.Metadata.TagList title="Tags">
+                          {profile.tags.map((tag: string) => (
+                            <List.Item.Detail.Metadata.TagList.Item key={tag} text={tag} color={Color.Blue} />
+                          ))}
+                        </List.Item.Detail.Metadata.TagList>
+                      )}
+                      <List.Item.Detail.Metadata.Separator />
+                      <List.Item.Detail.Metadata.Label
+                        title="Created"
+                        text={new Date(profile.createdAt).toLocaleString()}
+                        icon={Icon.Calendar}
+                      />
+                      <List.Item.Detail.Metadata.Label
+                        title="Last Updated"
+                        text={new Date(profile.updatedAt).toLocaleString()}
+                        icon={Icon.Clock}
+                      />
+                      <List.Item.Detail.Metadata.Separator />
+                      <List.Item.Detail.Metadata.Label
+                        title="Lights"
+                        text={`${profile.lights.length} total`}
+                        icon={Icon.LightBulb}
+                      />
+                      {profile.lights.map((light: ProfileLightState) => (
+                        <List.Item.Detail.Metadata.Label
+                          key={light.lightId}
+                          title={light.lightLabel}
+                          text={`${light.power ? "On" : "Off"} • ${light.brightness}% • ${light.hue}° • ${light.kelvin}K`}
+                          icon={{
+                            source: Icon.CircleFilled,
+                            tintColor: light.power ? Color.Green : Color.Red,
+                          }}
+                        />
+                      ))}
+                    </List.Item.Detail.Metadata>
+                  }
+                />
+              }
+            />
+          );
+        })
       )}
     </List>
   );

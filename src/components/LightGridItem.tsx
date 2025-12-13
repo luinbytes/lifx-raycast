@@ -1,8 +1,6 @@
-import { List, ActionPanel, Action, Icon, Color, showToast, Toast, Form, popToRoot, Detail } from "@raycast/api";
-import { useState } from "react";
-import { LIFXLight, LightProfile, ProfileLightState } from "../lib/types";
+import { Grid, ActionPanel, Action, Icon, Color, showToast, Toast, Detail } from "@raycast/api";
+import { LIFXLight } from "../lib/types";
 import { LIFXClientManager } from "../lib/lifx-client";
-import { ProfileStorage } from "../lib/storage";
 import { BrightnessControl } from "./BrightnessControl";
 import { ColorPicker } from "./ColorPicker";
 import { TemperatureControl } from "./TemperatureControl";
@@ -25,125 +23,51 @@ const COLOR_SCENES = [
   { hue: 240, saturation: 50, brightness: 30, kelvin: 3500, name: "Night", icon: "🌙" },
 ];
 
-function SaveProfileForm({ light, onSave }: { light: LIFXLight; onSave: () => void }) {
-  const [profileName, setProfileName] = useState("");
-  const [storage] = useState(() => new ProfileStorage());
-
-  async function handleSubmit() {
-    if (!profileName.trim()) {
-      showToast({ style: Toast.Style.Failure, title: "Profile name is required" });
-      return;
-    }
-
-    try {
-      const profile: LightProfile = {
-        id: `profile-${Date.now()}`,
-        name: profileName.trim(),
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        lights: [
-          {
-            lightId: light.id,
-            lightLabel: light.label,
-            power: light.power,
-            brightness: light.brightness,
-            hue: light.hue,
-            saturation: light.saturation,
-            kelvin: light.kelvin,
-          },
-        ],
-      };
-
-      await storage.saveProfile(profile);
-      showToast({ style: Toast.Style.Success, title: `Saved profile "${profileName}"` });
-      onSave();
-      popToRoot();
-    } catch (error) {
-      showToast({
-        style: Toast.Style.Failure,
-        title: "Failed to save profile",
-        message: error instanceof Error ? error.message : String(error),
-      });
-    }
-  }
-
-  return (
-    <Form
-      actions={
-        <ActionPanel>
-          <Action.SubmitForm title="Save Profile" onSubmit={handleSubmit} />
-        </ActionPanel>
-      }
-    >
-      <Form.TextField
-        id="name"
-        title="Profile Name"
-        placeholder="My favorite setting"
-        value={profileName}
-        onChange={setProfileName}
-      />
-      <Form.Description
-        text={`Save current state: ${light.power ? "On" : "Off"}, ${light.brightness}%, ${light.hue}°, ${light.kelvin}K`}
-      />
-    </Form>
-  );
-}
-
-function LoadProfileList({ light, client, onLoad }: { light: LIFXLight; client: LIFXClientManager; onLoad: () => void }) {
-  const [profiles, setProfiles] = useState<LightProfile[]>([]);
-  const [storage] = useState(() => new ProfileStorage());
-
-  useState(() => {
-    storage.getProfiles().then(setProfiles);
-  });
-
-  async function applyProfile(profile: LightProfile) {
-    try {
-      const lightState = profile.lights[0];
-      await client.controlLight(light.id, {
-        power: lightState.power,
-        brightness: lightState.brightness,
-        hue: lightState.hue,
-        saturation: lightState.saturation,
-        kelvin: lightState.kelvin,
-      });
-      showToast({ style: Toast.Style.Success, title: `Applied profile "${profile.name}"` });
-      // Wait for bulb to broadcast new state before refreshing UI
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      onLoad();
-      popToRoot();
-    } catch (error) {
-      showToast({
-        style: Toast.Style.Failure,
-        title: "Failed to apply profile",
-        message: error instanceof Error ? error.message : String(error),
-      });
-    }
-  }
-
-  return (
-    <List searchBarPlaceholder="Search profiles...">
-      {profiles.length === 0 ? (
-        <List.EmptyView title="No Profiles Saved" description="Save your current light setup as a profile" icon={Icon.SaveDocument} />
-      ) : (
-        profiles.map((profile: LightProfile) => (
-          <List.Item
-            key={profile.id}
-            title={profile.name}
-            accessories={[{ date: new Date(profile.updatedAt) }]}
-            actions={
-              <ActionPanel>
-                <Action title="Apply Profile" icon={Icon.Checkmark} onAction={() => applyProfile(profile)} />
-              </ActionPanel>
-            }
-          />
-        ))
-      )}
-    </List>
-  );
-}
-
 function LightDetailView({ light, client, onUpdate }: Props) {
+  const getColorFromHSB = (hue: number, saturation: number, brightness: number) => {
+    // Convert HSB to RGB for display
+    const h = hue / 360;
+    const s = saturation / 100;
+    const v = brightness / 100;
+
+    let r = 0, g = 0, b = 0;
+    const i = Math.floor(h * 6);
+    const f = h * 6 - i;
+    const p = v * (1 - s);
+    const q = v * (1 - f * s);
+    const t = v * (1 - (1 - f) * s);
+
+    switch (i % 6) {
+      case 0: r = v; g = t; b = p; break;
+      case 1: r = q; g = v; b = p; break;
+      case 2: r = p; g = v; b = t; break;
+      case 3: r = p; g = q; b = v; break;
+      case 4: r = t; g = p; b = v; break;
+      case 5: r = v; g = p; b = q; break;
+    }
+
+    return `rgb(${Math.round(r * 255)}, ${Math.round(g * 255)}, ${Math.round(b * 255)})`;
+  };
+
+  const markdown = `
+# ${light.label}
+
+---
+
+## Current State
+- **Power:** ${light.power ? "🟢 On" : "🔴 Off"}
+- **Brightness:** ${light.brightness}%
+- **Hue:** ${light.hue}°
+- **Saturation:** ${light.saturation}%
+- **Kelvin:** ${light.kelvin}K
+- **Connection:** ${light.source.toUpperCase()}
+
+---
+
+## Color Preview
+${light.saturation > 0 ? `**Color:** ${getColorFromHSB(light.hue, light.saturation, light.brightness)}` : `**White Temperature:** ${light.kelvin}K`}
+`;
+
   async function togglePower() {
     try {
       await client.controlLight(light.id, { power: !light.power });
@@ -197,24 +121,6 @@ function LightDetailView({ light, client, onUpdate }: Props) {
     }
   }
 
-  const markdown = `
-# ${light.label}
-
----
-
-## Current State
-- **Power:** ${light.power ? "🟢 On" : "🔴 Off"}
-- **Brightness:** ${light.brightness}%
-- **Hue:** ${light.hue}°
-- **Saturation:** ${light.saturation}%
-- **Kelvin:** ${light.kelvin}K
-- **Connection:** ${light.source.toUpperCase()}
-
----
-
-${light.saturation > 0 ? `**Color Mode:** ${light.hue}° hue at ${light.saturation}% saturation` : `**White Mode:** ${light.kelvin}K color temperature`}
-`;
-
   return (
     <Detail
       markdown={markdown}
@@ -234,10 +140,7 @@ ${light.saturation > 0 ? `**Color Mode:** ${light.hue}° hue at ${light.saturati
           <Detail.Metadata.Separator />
           <Detail.Metadata.Label title="Connection Type" text={light.source.toUpperCase()} />
           <Detail.Metadata.TagList title="Features">
-            <Detail.Metadata.TagList.Item
-              text={light.power ? "Powered" : "Off"}
-              color={light.power ? Color.Green : Color.Red}
-            />
+            <Detail.Metadata.TagList.Item text={light.power ? "Powered" : "Off"} color={light.power ? Color.Green : Color.Red} />
             <Detail.Metadata.TagList.Item text={light.saturation > 0 ? "Color" : "White"} color={Color.Blue} />
           </Detail.Metadata.TagList>
         </Detail.Metadata>
@@ -282,26 +185,13 @@ ${light.saturation > 0 ? `**Color Mode:** ${light.hue}° hue at ${light.saturati
               <Action key={scene.name} title={`${scene.icon} ${scene.name}`} onAction={() => applyScene(scene)} />
             ))}
           </ActionPanel.Section>
-
-          <ActionPanel.Section title="Copy">
-            <Action.CopyToClipboard
-              title="Copy Light Name"
-              content={light.label}
-              shortcut={{ modifiers: ["cmd"], key: "c" }}
-            />
-            <Action.CopyToClipboard
-              title="Copy Light ID"
-              content={light.id}
-              shortcut={{ modifiers: ["cmd", "shift"], key: "c" }}
-            />
-          </ActionPanel.Section>
         </ActionPanel>
       }
     />
   );
 }
 
-export function LightListItem({ light, client, onUpdate }: Props) {
+export function LightGridItem({ light, client, onUpdate }: Props) {
   // Determine icon color based on light state
   const getTintColor = () => {
     if (!light.power) return Color.SecondaryText;
@@ -319,21 +209,6 @@ export function LightListItem({ light, client, onUpdate }: Props) {
     return Color.Orange;
   };
 
-  const accessories = [
-    {
-      text: light.power ? "On" : "Off",
-      icon: { source: Icon.CircleFilled, tintColor: light.power ? Color.Green : Color.Red },
-    },
-    {
-      text: `${light.brightness}%`,
-      icon: Icon.Sun,
-    },
-    {
-      tag: { value: light.saturation > 0 ? "Color" : "White", color: light.saturation > 0 ? Color.Magenta : Color.Orange },
-    },
-    { text: light.source.toUpperCase(), tooltip: `Connected via ${light.source}` },
-  ];
-
   async function togglePower() {
     try {
       await client.controlLight(light.id, { power: !light.power });
@@ -341,8 +216,7 @@ export function LightListItem({ light, client, onUpdate }: Props) {
         style: Toast.Style.Success,
         title: `Turned ${!light.power ? "on" : "off"} ${light.label}`,
       });
-      // Wait for bulb to broadcast new state before refreshing UI
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      await new Promise((resolve) => setTimeout(resolve, 1500));
       await onUpdate();
     } catch (error) {
       showToast({
@@ -357,8 +231,7 @@ export function LightListItem({ light, client, onUpdate }: Props) {
     try {
       await client.controlLight(light.id, { brightness: value });
       showToast({ style: Toast.Style.Success, title: `Set ${light.label} to ${value}%` });
-      // Wait for bulb to broadcast new state before refreshing UI
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      await new Promise((resolve) => setTimeout(resolve, 1500));
       await onUpdate();
     } catch (error) {
       showToast({
@@ -371,14 +244,9 @@ export function LightListItem({ light, client, onUpdate }: Props) {
 
   async function setWhiteTemperature(kelvin: number) {
     try {
-      // Only set kelvin and saturation - brightness will be preserved automatically
-      await client.controlLight(light.id, {
-        kelvin,
-        saturation: 0,
-      });
+      await client.controlLight(light.id, { kelvin, saturation: 0 });
       showToast({ style: Toast.Style.Success, title: `Set ${light.label} to ${kelvin}K` });
-      // Wait for bulb to broadcast new state before refreshing UI
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      await new Promise((resolve) => setTimeout(resolve, 1500));
       await onUpdate();
     } catch (error) {
       showToast({
@@ -398,8 +266,7 @@ export function LightListItem({ light, client, onUpdate }: Props) {
         kelvin: scene.kelvin,
       });
       showToast({ style: Toast.Style.Success, title: `Applied "${scene.name}" scene` });
-      // Wait for bulb to broadcast new state before refreshing UI
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      await new Promise((resolve) => setTimeout(resolve, 1500));
       await onUpdate();
     } catch (error) {
       showToast({
@@ -411,11 +278,19 @@ export function LightListItem({ light, client, onUpdate }: Props) {
   }
 
   return (
-    <List.Item
+    <Grid.Item
       title={light.label}
-      subtitle={`${light.hue}° • ${light.kelvin}K`}
-      icon={{ source: Icon.LightBulb, tintColor: getTintColor() }}
-      accessories={accessories}
+      subtitle={`${light.brightness}% • ${light.saturation > 0 ? `${light.hue}°` : `${light.kelvin}K`}`}
+      content={{
+        source: Icon.LightBulb,
+        tintColor: getTintColor(),
+      }}
+      accessories={[
+        {
+          icon: { source: Icon.CircleFilled, tintColor: light.power ? Color.Green : Color.Red },
+          tooltip: light.power ? "On" : "Off",
+        },
+      ]}
       actions={
         <ActionPanel>
           <ActionPanel.Section title="Quick Actions">
@@ -423,7 +298,6 @@ export function LightListItem({ light, client, onUpdate }: Props) {
               title={light.power ? "Turn Off" : "Turn On"}
               icon={light.power ? Icon.PowerOff : Icon.Power}
               onAction={togglePower}
-              shortcut={{ modifiers: ["ctrl", "shift"], key: "p" }}
             />
             <Action.Push
               title="View Details"
@@ -438,20 +312,53 @@ export function LightListItem({ light, client, onUpdate }: Props) {
               title="Set Brightness"
               icon={Icon.Sun}
               target={<BrightnessControl light={light} client={client} onComplete={onUpdate} />}
-              shortcut={{ modifiers: ["ctrl", "shift"], key: "b" }}
+              shortcut={{ modifiers: ["cmd", "shift"], key: "b" }}
             />
             <Action.Push
               title="Set Color"
               icon={Icon.Pencil}
               target={<ColorPicker light={light} client={client} onComplete={onUpdate} />}
-              shortcut={{ modifiers: ["ctrl", "shift"], key: "c" }}
+              shortcut={{ modifiers: ["cmd", "shift"], key: "c" }}
             />
             <Action.Push
               title="Set Temperature"
               icon={Icon.Temperature}
               target={<TemperatureControl light={light} client={client} onComplete={onUpdate} />}
-              shortcut={{ modifiers: ["ctrl", "shift"], key: "t" }}
+              shortcut={{ modifiers: ["cmd", "shift"], key: "t" }}
             />
+          </ActionPanel.Section>
+
+          <ActionPanel.Section title="Quick Brightness">
+            <Action
+              title="100%"
+              icon={Icon.Sun}
+              onAction={() => setBrightness(100)}
+              shortcut={{ modifiers: ["cmd"], key: "1" }}
+            />
+            <Action
+              title="75%"
+              icon={Icon.Sun}
+              onAction={() => setBrightness(75)}
+              shortcut={{ modifiers: ["cmd"], key: "2" }}
+            />
+            <Action
+              title="50%"
+              icon={Icon.Circle}
+              onAction={() => setBrightness(50)}
+              shortcut={{ modifiers: ["cmd"], key: "3" }}
+            />
+            <Action
+              title="25%"
+              icon={Icon.Circle}
+              onAction={() => setBrightness(25)}
+              shortcut={{ modifiers: ["cmd"], key: "4" }}
+            />
+          </ActionPanel.Section>
+
+          <ActionPanel.Section title="Quick White">
+            <Action title="Warm (2700K)" onAction={() => setWhiteTemperature(2700)} />
+            <Action title="Neutral (3500K)" onAction={() => setWhiteTemperature(3500)} />
+            <Action title="Cool (6500K)" onAction={() => setWhiteTemperature(6500)} />
           </ActionPanel.Section>
 
           <ActionPanel.Section title="Scenes">
@@ -460,57 +367,9 @@ export function LightListItem({ light, client, onUpdate }: Props) {
                 key={scene.name}
                 title={`${scene.icon} ${scene.name}`}
                 onAction={() => applyScene(scene)}
-                shortcut={idx < 9 ? { modifiers: ["ctrl", "shift"], key: (idx + 1).toString() as any } : undefined}
+                shortcut={idx < 9 ? { modifiers: ["cmd", "shift"], key: (idx + 1).toString() as any } : undefined}
               />
             ))}
-          </ActionPanel.Section>
-
-          <ActionPanel.Section title="Quick Brightness">
-            <Action
-              title="100% Brightness"
-              icon={Icon.Sun}
-              onAction={() => setBrightness(100)}
-              shortcut={{ modifiers: ["ctrl"], key: "1" }}
-            />
-            <Action
-              title="75% Brightness"
-              icon={Icon.Sun}
-              onAction={() => setBrightness(75)}
-              shortcut={{ modifiers: ["ctrl"], key: "2" }}
-            />
-            <Action
-              title="50% Brightness"
-              icon={Icon.Circle}
-              onAction={() => setBrightness(50)}
-              shortcut={{ modifiers: ["ctrl"], key: "3" }}
-            />
-            <Action
-              title="25% Brightness"
-              icon={Icon.Circle}
-              onAction={() => setBrightness(25)}
-              shortcut={{ modifiers: ["ctrl"], key: "4" }}
-            />
-          </ActionPanel.Section>
-
-          <ActionPanel.Section title="Quick White">
-            <Action title="Warm White (2700K)" icon={Icon.LightBulb} onAction={() => setWhiteTemperature(2700)} />
-            <Action title="Neutral White (3500K)" icon={Icon.LightBulb} onAction={() => setWhiteTemperature(3500)} />
-            <Action title="Cool White (6500K)" icon={Icon.LightBulb} onAction={() => setWhiteTemperature(6500)} />
-          </ActionPanel.Section>
-
-          <ActionPanel.Section title="Profiles">
-            <Action.Push
-              title="Save as Profile"
-              icon={Icon.SaveDocument}
-              target={<SaveProfileForm light={light} onSave={onUpdate} />}
-              shortcut={{ modifiers: ["ctrl", "shift"], key: "s" }}
-            />
-            <Action.Push
-              title="Load Profile"
-              icon={Icon.Document}
-              target={<LoadProfileList light={light} client={client} onLoad={onUpdate} />}
-              shortcut={{ modifiers: ["ctrl", "shift"], key: "l" }}
-            />
           </ActionPanel.Section>
         </ActionPanel>
       }
