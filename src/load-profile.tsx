@@ -1,37 +1,38 @@
-import { List, ActionPanel, Action, Icon, showToast, Toast, Alert, confirmAlert } from "@raycast/api";
+import { List, ActionPanel, Action, Icon, showToast, Toast, Alert, confirmAlert, Color } from "@raycast/api";
 import { useEffect, useState } from "react";
+import { usePromise } from "@raycast/utils";
 import { LIFXClientManager } from "./lib/lifx-client";
 import { ProfileStorage } from "./lib/storage";
 import { LightProfile } from "./lib/types";
 
 export default function Command() {
   const [profiles, setProfiles] = useState<LightProfile[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [client] = useState(() => new LIFXClientManager());
   const [storage] = useState(() => new ProfileStorage());
 
-  useEffect(() => {
-    loadProfiles();
+  const { isLoading, revalidate } = usePromise(
+    async () => {
+      const savedProfiles = await storage.getProfiles();
+      setProfiles(savedProfiles);
+      return savedProfiles;
+    },
+    [],
+    {
+      onError: (error) => {
+        showToast({
+          style: Toast.Style.Failure,
+          title: "Failed to load profiles",
+          message: error instanceof Error ? error.message : String(error),
+        });
+      },
+    }
+  );
 
+  useEffect(() => {
     return () => {
       client.destroy();
     };
   }, []);
-
-  async function loadProfiles() {
-    try {
-      const savedProfiles = await storage.getProfiles();
-      setProfiles(savedProfiles);
-    } catch (error) {
-      showToast({
-        style: Toast.Style.Failure,
-        title: "Failed to load profiles",
-        message: error instanceof Error ? error.message : String(error),
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  }
 
   async function applyProfile(profile: LightProfile) {
     const confirmed = await confirmAlert({
@@ -93,24 +94,77 @@ export default function Command() {
           title="No Profiles Saved"
           description="Save your current light setup as a profile to load it later"
           icon={Icon.SaveDocument}
+          actions={
+            <ActionPanel>
+              <Action.Push
+                title="Create New Profile"
+                icon={Icon.Plus}
+                target={<List.EmptyView title="Use 'Save Profile' command" icon={Icon.SaveDocument} />}
+              />
+            </ActionPanel>
+          }
         />
       ) : (
-        profiles.map((profile) => (
-          <List.Item
-            key={profile.id}
-            title={profile.name}
-            subtitle={profile.description}
-            accessories={[
-              { text: `${profile.lights.length} light${profile.lights.length !== 1 ? "s" : ""}` },
-              { date: new Date(profile.updatedAt) },
-            ]}
-            actions={
-              <ActionPanel>
-                <Action title="Apply Profile" icon={Icon.Checkmark} onAction={() => applyProfile(profile)} />
-              </ActionPanel>
-            }
-          />
-        ))
+        profiles.map((profile: LightProfile) => {
+          const accessories: List.Item.Accessory[] = [];
+
+          if (profile.tags && profile.tags.length > 0) {
+            accessories.push({
+              tag: { value: profile.tags[0], color: Color.Blue },
+              tooltip: `Tags: ${profile.tags.join(", ")}`,
+            });
+          }
+
+          accessories.push({
+            text: `${profile.lights.length} light${profile.lights.length !== 1 ? "s" : ""}`,
+            icon: Icon.LightBulb,
+          });
+          accessories.push({ date: new Date(profile.updatedAt) });
+
+          return (
+            <List.Item
+              key={profile.id}
+              title={profile.name}
+              subtitle={profile.description}
+              icon={{ source: Icon.SaveDocument, tintColor: Color.Green }}
+              accessories={accessories}
+              actions={
+                <ActionPanel>
+                  <ActionPanel.Section title="Profile Actions">
+                    <Action
+                      title="Apply Profile"
+                      icon={Icon.Checkmark}
+                      onAction={() => applyProfile(profile)}
+                      shortcut={{ modifiers: ["cmd"], key: "enter" }}
+                    />
+                  </ActionPanel.Section>
+                  <ActionPanel.Section title="Copy">
+                    <Action.CopyToClipboard
+                      title="Copy Profile Name"
+                      content={profile.name}
+                      shortcut={{ modifiers: ["cmd"], key: "c" }}
+                    />
+                    {profile.description && (
+                      <Action.CopyToClipboard
+                        title="Copy Description"
+                        content={profile.description}
+                        shortcut={{ modifiers: ["cmd", "shift"], key: "c" }}
+                      />
+                    )}
+                  </ActionPanel.Section>
+                  <ActionPanel.Section>
+                    <Action
+                      title="Refresh"
+                      icon={Icon.ArrowClockwise}
+                      onAction={revalidate}
+                      shortcut={{ modifiers: ["cmd"], key: "r" }}
+                    />
+                  </ActionPanel.Section>
+                </ActionPanel>
+              }
+            />
+          );
+        })
       )}
     </List>
   );
