@@ -1,0 +1,103 @@
+{
+  "$schema": "https://www.raycast.com/schemas/extension.json",
+  "name": "lifx",
+  "title": "LiFX",
+  "description": "Control your LiFX devices from raycast!",
+  "icon": "extension-icon.png",
+  "license": "MIT",
+  "commands": [
+    {
+      "name": "index",
+      "title": "Control Lights",
+      "subtitle": "LIFX",
+      "description": "View and control all LIFX lights",
+      "mode": "view"
+    },
+    {
+      "name": "save-profile",
+      "title": "Save Light Profile",
+      "subtitle": "LIFX",
+      "description": "Save current light state as a profile",
+      "mode": "view"
+    },
+    {
+      "name": "load-profile",
+      "title": "Load Light Profile",
+      "subtitle": "LIFX",
+      "description": "Apply a saved light profile",
+      "mode": "view"
+    },
+    {
+      "name": "manage-profiles",
+      "title": "Manage Light Profiles",
+      "subtitle": "LIFX",
+      "description": "View, edit, and delete saved profiles",
+      "mode": "view"
+    }
+  ],
+  "preferences": [
+    {
+      "name": "httpApiToken",
+      "type": "password",
+      "required": false,
+      "title": "LIFX HTTP API Token",
+      "description": "Get your token from https://cloud.lifx.com/settings",
+      "placeholder": "Enter your LIFX API token"
+    },
+    {
+      "name": "defaultFadeDuration",
+      "type": "textfield",
+      "required": false,
+      "default": "1000",
+      "title": "Default Fade Duration (ms)",
+      "description": "How long light transitions should take",
+      "placeholder": "1000"
+    },
+    {
+      "name": "lanTimeout",
+      "type": "textfield",
+      "required": false,
+      "default": "5000",
+      "title": "LAN Discovery Timeout (ms)",
+      "description": "How long to wait for local network discovery",
+      "placeholder": "5000"
+    },
+    {
+      "name": "enableLanDiscovery",
+      "type": "checkbox",
+      "required": false,
+      "default": true,
+      "label": "Enable LAN Discovery",
+      "description": "Discover lights on local network (faster than HTTP)"
+    }
+  ],
+  "dependencies": {
+    "@raycast/api": "^1.103.0",
+    "@raycast/utils": "^2.2.1",
+    "lifx-lan-client": "^2.1.2",
+    "lifxjs": "^1.1.0"
+  },
+  "devDependencies": {
+    "@raycast/eslint-config": "^2.0.4",
+    "@types/node": "22.13.10",
+    "@types/react": "19.0.10",
+    "eslint": "^9.22.0",
+    "prettier": "^3.5.3",
+    "typescript": "^5.8.2"
+  },
+  "scripts": {
+    "dev": "ray develop",
+    "lint": "ray lint",
+    "fix-lint": "ray lint --fix",
+    "build": "ray build",
+    "publish": "npx @raycast/api@latest publish",
+    "prepublishOnly": "echo \"\\n\\nIt seems like you are trying to publish the Raycast extension to npm.\\n\\nIf you did intend to publish it to npm, remove the \\`prepublishOnly\\` script and rerun \\`npm publish\\` again.\\nIf you wanted to publish it to the Raycast Store instead, use \\`npm run publish\\` instead.\\n\\n\" && exit 1"
+  },
+  "author": "nazzy_wazzy_lu",
+  "platforms": [
+    "Windows"
+  ],
+  "categories": [
+    "Applications"
+  ]
+}

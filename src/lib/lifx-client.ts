@@ -1,0 +1,132 @@
+import { getPreferenceValues } from "@raycast/api";
+import { LIFXLanClient } from "./lifx-lan";
+import { LIFXHttpClient } from "./lifx-http";
+import { LIFXLight, LightControl, Preferences, ConnectionState } from "./types";
+
+export class LIFXClientManager {
+  private lanClient: LIFXLanClient | null = null;
+  private httpClient: LIFXHttpClient | null = null;
+  private connectionState: ConnectionState = {
+    lanAvailable: false,
+    httpAvailable: false,
+    activeLights: [],
+    lastDiscovery: null,
+  };
+
+  async initialize(): Promise<void> {
+    const preferences = getPreferenceValues<Preferences>();
+
+    // Try LAN discovery first (if enabled in preferences)
+    if (preferences.enableLanDiscovery) {
+      try {
+        const timeout = parseInt(preferences.lanTimeout) || 5000;
+        this.lanClient = new LIFXLanClient();
+        await this.lanClient.initialize(timeout);
+        this.connectionState.lanAvailable = true;
+      } catch (error) {
+        console.warn("LAN discovery failed:", error);
+        this.connectionState.lanAvailable = false;
+      }
+    }
+
+    // Initialize HTTP client (requires API token)
+    if (preferences.httpApiToken) {
+      try {
+        this.httpClient = new LIFXHttpClient();
+        await this.httpClient.initialize(preferences.httpApiToken);
+        this.connectionState.httpAvailable = true;
+      } catch (error) {
+        console.warn("HTTP API initialization failed:", error);
+        this.connectionState.httpAvailable = false;
+      }
+    }
+
+    if (!this.connectionState.lanAvailable && !this.connectionState.httpAvailable) {
+      throw new Error("No connection method available. Enable LAN discovery or provide HTTP API token.");
+    }
+  }
+
+  async discoverLights(): Promise<LIFXLight[]> {
+    const lights: Map<string, LIFXLight> = new Map();
+
+    // Prefer LAN lights (faster, local)
+    if (this.lanClient && this.connectionState.lanAvailable) {
+      try {
+        const lanLights = await this.lanClient.getLights();
+        lanLights.forEach((light) => lights.set(light.id, light));
+      } catch (error) {
+        console.warn("Failed to get LAN lights:", error);
+      }
+    }
+
+    // Add HTTP lights not found via LAN
+    if (this.httpClient && this.connectionState.httpAvailable) {
+      try {
+        const httpLights = await this.httpClient.getLights();
+        httpLights.forEach((light) => {
+          if (!lights.has(light.id)) {
+            lights.set(light.id, light);
+          }
+        });
+      } catch (error) {
+        console.warn("Failed to get HTTP lights:", error);
+      }
+    }
+
+    this.connectionState.activeLights = Array.from(lights.values());
+    this.connectionState.lastDiscovery = new Date();
+    return this.connectionState.activeLights;
+  }
+
+  async controlLight(lightId: string, control: LightControl): Promise<void> {
+    const light = this.connectionState.activeLights.find((l) => l.id === lightId);
+    if (!light) throw new Error("Light not found");
+
+    // If we're changing color/temp but not brightness, preserve current brightness
+    const needsBrightnessPreservation =
+      control.brightness === undefined &&
+      (control.hue !== undefined || control.saturation !== undefined || control.kelvin !== undefined);
+
+    let finalControl = control;
+    if (needsBrightnessPreservation) {
+      // Get fresh light state to preserve current brightness
+      const currentLights = await this.discoverLights();
+      const currentLight = currentLights.find((l) => l.id === lightId);
+      if (currentLight && currentLight.brightness > 0) {
+        finalControl = { ...control, brightness: currentLight.brightness };
+      }
+    }
+
+    // Try preferred source first, fallback to alternative
+    try {
+      if (light.source === "lan" && this.lanClient) {
+        await this.lanClient.control(lightId, finalControl);
+        return;
+      } else if (this.httpClient) {
+        await this.httpClient.control(lightId, finalControl);
+        return;
+      }
+    } catch (error) {
+      console.warn(`Primary control method failed for ${light.label}, trying fallback:`, error);
+
+      // Fallback to alternative source
+      if (light.source === "lan" && this.httpClient) {
+        await this.httpClient.control(lightId, finalControl);
+      } else if (light.source === "http" && this.lanClient) {
+        await this.lanClient.control(lightId, finalControl);
+      } else {
+        throw error;
+      }
+    }
+  }
+
+  getConnectionState(): ConnectionState {
+    return this.connectionState;
+  }
+
+  destroy(): void {
+    if (this.lanClient) {
+      this.lanClient.destroy();
+    }
+  }
+}

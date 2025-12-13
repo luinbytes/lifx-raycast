@@ -1,0 +1,321 @@
+import { List, ActionPanel, Action, Icon, Color, showToast, Toast, Form, popToRoot } from "@raycast/api";
+import { useState } from "react";
+import { LIFXLight, LightProfile, ProfileLightState } from "../lib/types";
+import { LIFXClientManager } from "../lib/lifx-client";
+import { ProfileStorage } from "../lib/storage";
+import { BrightnessControl } from "./BrightnessControl";
+import { ColorPicker } from "./ColorPicker";
+import { TemperatureControl } from "./TemperatureControl";
+
+interface Props {
+  light: LIFXLight;
+  client: LIFXClientManager;
+  onUpdate: () => void;
+}
+
+const COLOR_SCENES = [
+  { hue: 0, saturation: 100, brightness: 100, kelvin: 3500, name: "Red", icon: "🔴" },
+  { hue: 120, saturation: 100, brightness: 100, kelvin: 3500, name: "Green", icon: "🟢" },
+  { hue: 240, saturation: 100, brightness: 100, kelvin: 3500, name: "Blue", icon: "🔵" },
+  { hue: 60, saturation: 100, brightness: 100, kelvin: 3500, name: "Yellow", icon: "🟡" },
+  { hue: 300, saturation: 100, brightness: 100, kelvin: 3500, name: "Magenta", icon: "🩷" },
+  { hue: 0, saturation: 0, brightness: 100, kelvin: 2700, name: "Warm Relax", icon: "🌅" },
+  { hue: 0, saturation: 0, brightness: 75, kelvin: 3500, name: "Reading", icon: "📖" },
+  { hue: 0, saturation: 0, brightness: 100, kelvin: 6500, name: "Energize", icon: "⚡" },
+  { hue: 240, saturation: 50, brightness: 30, kelvin: 3500, name: "Night", icon: "🌙" },
+];
+
+function SaveProfileForm({ light, onSave }: { light: LIFXLight; onSave: () => void }) {
+  const [profileName, setProfileName] = useState("");
+  const [storage] = useState(() => new ProfileStorage());
+
+  async function handleSubmit() {
+    if (!profileName.trim()) {
+      showToast({ style: Toast.Style.Failure, title: "Profile name is required" });
+      return;
+    }
+
+    try {
+      const profile: LightProfile = {
+        id: `profile-${Date.now()}`,
+        name: profileName.trim(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        lights: [
+          {
+            lightId: light.id,
+            lightLabel: light.label,
+            power: light.power,
+            brightness: light.brightness,
+            hue: light.hue,
+            saturation: light.saturation,
+            kelvin: light.kelvin,
+          },
+        ],
+      };
+
+      await storage.saveProfile(profile);
+      showToast({ style: Toast.Style.Success, title: `Saved profile "${profileName}"` });
+      onSave();
+      popToRoot();
+    } catch (error) {
+      showToast({
+        style: Toast.Style.Failure,
+        title: "Failed to save profile",
+        message: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  return (
+    <Form
+      actions={
+        <ActionPanel>
+          <Action.SubmitForm title="Save Profile" onSubmit={handleSubmit} />
+        </ActionPanel>
+      }
+    >
+      <Form.TextField
+        id="name"
+        title="Profile Name"
+        placeholder="My favorite setting"
+        value={profileName}
+        onChange={setProfileName}
+      />
+      <Form.Description
+        text={`Save current state: ${light.power ? "On" : "Off"}, ${light.brightness}%, ${light.hue}°, ${light.kelvin}K`}
+      />
+    </Form>
+  );
+}
+
+function LoadProfileList({ light, client, onLoad }: { light: LIFXLight; client: LIFXClientManager; onLoad: () => void }) {
+  const [profiles, setProfiles] = useState<LightProfile[]>([]);
+  const [storage] = useState(() => new ProfileStorage());
+
+  useState(() => {
+    storage.getProfiles().then(setProfiles);
+  });
+
+  async function applyProfile(profile: LightProfile) {
+    try {
+      const lightState = profile.lights[0];
+      await client.controlLight(light.id, {
+        power: lightState.power,
+        brightness: lightState.brightness,
+        hue: lightState.hue,
+        saturation: lightState.saturation,
+        kelvin: lightState.kelvin,
+      });
+      showToast({ style: Toast.Style.Success, title: `Applied profile "${profile.name}"` });
+      onLoad();
+      popToRoot();
+    } catch (error) {
+      showToast({
+        style: Toast.Style.Failure,
+        title: "Failed to apply profile",
+        message: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  return (
+    <List searchBarPlaceholder="Search profiles...">
+      {profiles.length === 0 ? (
+        <List.EmptyView title="No Profiles Saved" description="Save your current light setup as a profile" icon={Icon.SaveDocument} />
+      ) : (
+        profiles.map((profile) => (
+          <List.Item
+            key={profile.id}
+            title={profile.name}
+            accessories={[{ date: new Date(profile.updatedAt) }]}
+            actions={
+              <ActionPanel>
+                <Action title="Apply Profile" icon={Icon.Checkmark} onAction={() => applyProfile(profile)} />
+              </ActionPanel>
+            }
+          />
+        ))
+      )}
+    </List>
+  );
+}
+
+export function LightListItem({ light, client, onUpdate }: Props) {
+  const accessories = [
+    {
+      text: light.power ? "On" : "Off",
+      icon: { source: Icon.CircleFilled, tintColor: light.power ? Color.Green : Color.Red },
+    },
+    { text: `${light.brightness}%` },
+    { text: light.source.toUpperCase(), tooltip: `Connected via ${light.source}` },
+  ];
+
+  async function togglePower() {
+    try {
+      await client.controlLight(light.id, { power: !light.power });
+      showToast({
+        style: Toast.Style.Success,
+        title: `Turned ${!light.power ? "on" : "off"} ${light.label}`,
+      });
+      onUpdate();
+    } catch (error) {
+      showToast({
+        style: Toast.Style.Failure,
+        title: "Failed to toggle power",
+        message: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  async function setBrightness(value: number) {
+    try {
+      await client.controlLight(light.id, { brightness: value });
+      showToast({ style: Toast.Style.Success, title: `Set ${light.label} to ${value}%` });
+      onUpdate();
+    } catch (error) {
+      showToast({
+        style: Toast.Style.Failure,
+        title: "Failed to set brightness",
+        message: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  async function setWhiteTemperature(kelvin: number) {
+    try {
+      await client.controlLight(light.id, {
+        kelvin,
+        saturation: 0,
+        brightness: light.brightness, // Preserve brightness!
+      });
+      showToast({ style: Toast.Style.Success, title: `Set ${light.label} to ${kelvin}K` });
+      onUpdate();
+    } catch (error) {
+      showToast({
+        style: Toast.Style.Failure,
+        title: "Failed to set temperature",
+        message: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  async function applyScene(scene: typeof COLOR_SCENES[0]) {
+    try {
+      await client.controlLight(light.id, {
+        hue: scene.hue,
+        saturation: scene.saturation,
+        brightness: scene.brightness,
+        kelvin: scene.kelvin,
+      });
+      showToast({ style: Toast.Style.Success, title: `Applied "${scene.name}" scene` });
+      onUpdate();
+    } catch (error) {
+      showToast({
+        style: Toast.Style.Failure,
+        title: "Failed to apply scene",
+        message: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  return (
+    <List.Item
+      title={light.label}
+      subtitle={`${light.hue}° • ${light.kelvin}K`}
+      accessories={accessories}
+      actions={
+        <ActionPanel>
+          <ActionPanel.Section title="Power">
+            <Action
+              title={light.power ? "Turn Off" : "Turn On"}
+              icon={light.power ? Icon.PowerOff : Icon.Power}
+              onAction={togglePower}
+              shortcut={{ modifiers: ["cmd", "shift"], key: "p" }}
+            />
+          </ActionPanel.Section>
+
+          <ActionPanel.Section title="Adjust">
+            <Action.Push
+              title="Set Brightness"
+              icon={Icon.Sun}
+              target={<BrightnessControl light={light} client={client} onComplete={onUpdate} />}
+              shortcut={{ modifiers: ["cmd", "shift"], key: "b" }}
+            />
+            <Action.Push
+              title="Set Color"
+              icon={Icon.Pencil}
+              target={<ColorPicker light={light} client={client} onComplete={onUpdate} />}
+              shortcut={{ modifiers: ["cmd", "shift"], key: "c" }}
+            />
+            <Action.Push
+              title="Set Temperature"
+              icon={Icon.Temperature}
+              target={<TemperatureControl light={light} client={client} onComplete={onUpdate} />}
+              shortcut={{ modifiers: ["cmd", "shift"], key: "t" }}
+            />
+          </ActionPanel.Section>
+
+          <ActionPanel.Section title="Scenes">
+            {COLOR_SCENES.map((scene, idx) => (
+              <Action
+                key={scene.name}
+                title={`${scene.icon} ${scene.name}`}
+                onAction={() => applyScene(scene)}
+                shortcut={idx < 9 ? { modifiers: ["cmd", "shift"], key: (idx + 1).toString() as any } : undefined}
+              />
+            ))}
+          </ActionPanel.Section>
+
+          <ActionPanel.Section title="Quick Brightness">
+            <Action
+              title="100% Brightness"
+              icon={Icon.Sun}
+              onAction={() => setBrightness(100)}
+              shortcut={{ modifiers: ["cmd"], key: "1" }}
+            />
+            <Action
+              title="75% Brightness"
+              icon={Icon.Sun}
+              onAction={() => setBrightness(75)}
+              shortcut={{ modifiers: ["cmd"], key: "2" }}
+            />
+            <Action
+              title="50% Brightness"
+              icon={Icon.Circle}
+              onAction={() => setBrightness(50)}
+              shortcut={{ modifiers: ["cmd"], key: "3" }}
+            />
+            <Action
+              title="25% Brightness"
+              icon={Icon.Circle}
+              onAction={() => setBrightness(25)}
+              shortcut={{ modifiers: ["cmd"], key: "4" }}
+            />
+          </ActionPanel.Section>
+
+          <ActionPanel.Section title="Quick White">
+            <Action title="Warm White (2700K)" icon={Icon.LightBulb} onAction={() => setWhiteTemperature(2700)} />
+            <Action title="Neutral White (3500K)" icon={Icon.LightBulb} onAction={() => setWhiteTemperature(3500)} />
+            <Action title="Cool White (6500K)" icon={Icon.LightBulb} onAction={() => setWhiteTemperature(6500)} />
+          </ActionPanel.Section>
+
+          <ActionPanel.Section title="Profiles">
+            <Action.Push
+              title="Save as Profile"
+              icon={Icon.SaveDocument}
+              target={<SaveProfileForm light={light} onSave={onUpdate} />}
+              shortcut={{ modifiers: ["cmd", "shift"], key: "s" }}
+            />
+            <Action.Push
+              title="Load Profile"
+              icon={Icon.Document}
+              target={<LoadProfileList light={light} client={client} onLoad={onUpdate} />}
+              shortcut={{ modifiers: ["cmd", "shift"], key: "l" }}
+            />
+          </ActionPanel.Section>
+        </ActionPanel>
+      }
+    />
+  );
+}
