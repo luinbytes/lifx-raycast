@@ -114,9 +114,14 @@ export class LIFXLanClient {
       const bri = control.brightness ?? Math.round((state.color.brightness / 65535) * 100);
       const kelvin = control.kelvin ?? state.color.kelvin;
 
+      // Convert back to 0-65535 range for the LIFX LAN protocol
+      const hue65535 = Math.round((hue / 360) * 65535);
+      const sat65535 = Math.round((sat / 100) * 65535);
+      const bri65535 = Math.round((bri / 100) * 65535);
+
       // Set all color properties at once (required by LIFX LAN protocol)
       await new Promise<void>((resolve, reject) => {
-        light.color(hue, sat, bri, kelvin, duration, () => resolve());
+        light.color(hue65535, sat65535, bri65535, kelvin, duration, () => resolve());
         setTimeout(() => reject(new Error("Control timeout")), 10000);
       });
     }
