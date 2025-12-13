@@ -257,14 +257,56 @@ export default function Command() {
             <List.Section title="All Lights">
               <List.Item
                 title={`Control All Lights (${lights.length} total)`}
-                icon={{ source: Icon.LightBulb, tintColor: lights.every((l: LIFXLight) => l.power) ? Color.Green : Color.Red }}
-                accessories={[
-                  {
-                    text: `${lights.filter((l: LIFXLight) => l.power).length}/${lights.length} On`,
-                    icon: { source: Icon.CircleFilled, tintColor: Color.Blue },
-                  },
-                ]}
-                actions={<ActionPanel>{allLightsActions}</ActionPanel>}
+                icon={Icon.LightBulb}
+                accessories={[{ text: "Quick actions for all lights" }]}
+                actions={
+                  <ActionPanel>
+                    <ActionPanel.Section title="All Lights">
+                      <Action
+                        title="Turn All On"
+                        icon={Icon.Power}
+                        onAction={() => controlAllLights("on")}
+                        shortcut={{ modifiers: ["ctrl", "shift"], key: "o" }}
+                      />
+                      <Action
+                        title="Turn All Off"
+                        icon={Icon.PowerOff}
+                        onAction={() => controlAllLights("off")}
+                        shortcut={{ modifiers: ["ctrl", "shift"], key: "x" }}
+                      />
+                    </ActionPanel.Section>
+                    <ActionPanel.Section title="Set All Brightness">
+                      <Action
+                        title="All to 100%"
+                        onAction={() => controlAllLights("brightness", 100)}
+                        shortcut={{ modifiers: ["ctrl", "shift"], key: "1" }}
+                      />
+                      <Action
+                        title="All to 75%"
+                        onAction={() => controlAllLights("brightness", 75)}
+                        shortcut={{ modifiers: ["ctrl", "shift"], key: "2" }}
+                      />
+                      <Action
+                        title="All to 50%"
+                        onAction={() => controlAllLights("brightness", 50)}
+                        shortcut={{ modifiers: ["ctrl", "shift"], key: "3" }}
+                      />
+                      <Action
+                        title="All to 25%"
+                        onAction={() => controlAllLights("brightness", 25)}
+                        shortcut={{ modifiers: ["ctrl", "shift"], key: "4" }}
+                      />
+                    </ActionPanel.Section>
+                    <ActionPanel.Section>
+                      <Action
+                        title="Refresh Lights"
+                        icon={Icon.ArrowClockwise}
+                        onAction={refreshLights}
+                        shortcut={{ modifiers: ["ctrl"], key: "r" }}
+                      />
+                    </ActionPanel.Section>
+                  </ActionPanel>
+                }
               />
             </List.Section>
           )}

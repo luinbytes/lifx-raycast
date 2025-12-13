@@ -57,46 +57,39 @@ export default function Command() {
           icon={Icon.SaveDocument}
         />
       ) : (
-        profiles.map((profile: LightProfile) => {
-          const accessories: List.Item.Accessory[] = [];
-
-          if (profile.tags && profile.tags.length > 0) {
-            accessories.push({
-              tag: { value: profile.tags[0], color: Color.Blue },
-              tooltip: `Tags: ${profile.tags.join(", ")}`,
-            });
-          }
-
-          accessories.push({
-            text: `${profile.lights.length} light${profile.lights.length !== 1 ? "s" : ""}`,
-            icon: Icon.LightBulb,
-          });
-          accessories.push({ date: new Date(profile.updatedAt) });
-
-          return (
-            <List.Item
-              key={profile.id}
-              title={profile.name}
-              subtitle={profile.description}
-              icon={{ source: Icon.SaveDocument, tintColor: Color.Purple }}
-              accessories={accessories}
-              actions={
-                <ActionPanel>
-                  <ActionPanel.Section title="Profile Actions">
-                    <Action
-                      title="Delete Profile"
-                      icon={Icon.Trash}
-                      style={Action.Style.Destructive}
-                      onAction={() => deleteProfile(profile)}
-                      shortcut={{ modifiers: ["cmd"], key: "delete" }}
-                    />
-                  </ActionPanel.Section>
-                  <ActionPanel.Section title="Copy">
-                    <Action.CopyToClipboard
-                      title="Copy Profile Name"
-                      content={profile.name}
-                      shortcut={{ modifiers: ["cmd"], key: "c" }}
-                    />
+        profiles.map((profile) => (
+          <List.Item
+            key={profile.id}
+            title={profile.name}
+            subtitle={profile.description}
+            accessories={[
+              { text: `${profile.lights.length} light${profile.lights.length !== 1 ? "s" : ""}` },
+              { date: new Date(profile.updatedAt) },
+            ]}
+            actions={
+              <ActionPanel>
+                <ActionPanel.Section>
+                  <Action
+                    title="Delete Profile"
+                    icon={Icon.Trash}
+                    style={Action.Style.Destructive}
+                    onAction={() => deleteProfile(profile)}
+                  />
+                </ActionPanel.Section>
+                <ActionPanel.Section title="Details">
+                  <Action.CopyToClipboard
+                    title="Copy Profile Name"
+                    content={profile.name}
+                    shortcut={{ modifiers: ["ctrl"], key: "c" }}
+                  />
+                </ActionPanel.Section>
+              </ActionPanel>
+            }
+            detail={
+              <List.Item.Detail
+                metadata={
+                  <List.Item.Detail.Metadata>
+                    <List.Item.Detail.Metadata.Label title="Profile Name" text={profile.name} />
                     {profile.description && (
                       <Action.CopyToClipboard
                         title="Copy Description"
