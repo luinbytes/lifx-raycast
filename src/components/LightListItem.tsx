@@ -302,6 +302,8 @@ ${light.saturation > 0 ? `**Color Mode:** ${light.hue}° hue at ${light.saturati
 }
 
 export function LightListItem({ light, client, onUpdate }: Props) {
+  console.log(`[LightListItem] ${light.label}: H:${light.hue}° S:${light.saturation}% B:${light.brightness}%`);
+
   // Determine icon color based on light state
   const getTintColor = () => {
     if (!light.power) return Color.SecondaryText;

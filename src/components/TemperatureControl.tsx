@@ -36,7 +36,6 @@ export function TemperatureControl({ light, client, onComplete }: Props) {
       // Wait for bulb to broadcast new state before refreshing UI
       await new Promise(resolve => setTimeout(resolve, 1500));
       onComplete();
-      popToRoot();
     } catch (error) {
       showToast({
         style: Toast.Style.Failure,

@@ -48,7 +48,13 @@ export class LIFXLanClient {
 
     for (const [id, lanLight] of this.lights) {
       const state = await new Promise<any>((resolve) => {
+        const timeout = setTimeout(() => {
+          console.warn(`[LAN Discovery] getState timeout for light ${id.substring(0, 8)}`);
+          resolve(null);
+        }, 3000);
+
         lanLight.getState((err, data) => {
+          clearTimeout(timeout);
           resolve(err ? null : data);
         });
       });
@@ -56,15 +62,16 @@ export class LIFXLanClient {
       if (state) {
         console.log(`[LAN Discovery] Raw state from bulb:`, state.color);
 
-        // IMPORTANT: The lifx-lan-client library returns brightness as 0-100, NOT 0-65535
-        // but hue and saturation ARE in 0-65535 range
+        // IMPORTANT: The lifx-lan-client library handles ALL conversions for us!
+        // When READING (getState): ALL values are already in human-readable ranges (hue 0-360, sat/bri 0-100)
+        // When WRITING (color): ALL values should be in human-readable ranges (hue 0-360, sat/bri 0-100)
         const lightData = {
           id,
           label: state.label || `Light ${id.substring(0, 8)}`,
           power: state.power === 1,
           brightness: Math.round(state.color.brightness), // Already 0-100
-          hue: Math.round((state.color.hue / 65535) * 360),
-          saturation: Math.round((state.color.saturation / 65535) * 100),
+          hue: Math.round(state.color.hue), // Already 0-360
+          saturation: Math.round(state.color.saturation), // Already 0-100
           kelvin: state.color.kelvin,
           connected: true,
           source: "lan",
@@ -121,10 +128,10 @@ export class LIFXLanClient {
       // Log raw state from bulb
       console.log(`[LAN Control] Raw state from bulb:`, state.color);
 
-      // IMPORTANT: The lifx-lan-client library returns brightness as 0-100, NOT 0-65535
-      // but hue and saturation ARE in 0-65535 range
-      const currentHue = Math.round((state.color.hue / 65535) * 360);
-      const currentSat = Math.round((state.color.saturation / 65535) * 100);
+      // IMPORTANT: The lifx-lan-client library handles ALL conversions for us!
+      // When READING (getState): ALL values are already in human-readable ranges
+      const currentHue = Math.round(state.color.hue); // Already 0-360
+      const currentSat = Math.round(state.color.saturation); // Already 0-100
       const currentBri = Math.round(state.color.brightness); // Already 0-100
       const currentKelvin = state.color.kelvin;
       console.log(`[LAN Control] Current state from bulb: H:${currentHue}° S:${currentSat}% B:${currentBri}% K:${currentKelvin}K`);
@@ -145,19 +152,22 @@ export class LIFXLanClient {
 
       console.log(`[LAN Control] Sending to bulb: H:${hue}° S:${sat}% B:${bri}% K:${kelvin}K`);
 
-      // Convert to library's expected format:
-      // - hue and saturation: 0-65535 range
-      // - brightness: 0-100 range (NOT 0-65535!)
+      // The library's color() method expects ALL values in human-readable ranges:
+      // - hue: 0-360 degrees
+      // - saturation: 0-100 percent
+      // - brightness: 0-100 percent
       // - kelvin: absolute value
-      const hue65535 = Math.round((hue / 360) * 65535);
-      const sat65535 = Math.round((sat / 100) * 65535);
+      const hueValue = Math.round(hue); // Already 0-360
+      const satValue = Math.round(sat); // Already 0-100
       const briValue = Math.round(bri); // Already 0-100
 
-      console.log(`[LAN Control] Converted values: H:${hue65535} S:${sat65535} B:${briValue} K:${kelvin}`);
+      console.log(`[LAN Control] Sending values: H:${hueValue}° S:${satValue}% B:${briValue}% K:${kelvin}`);
+      console.log(`[LAN Control] Types: H:${typeof hueValue} S:${typeof satValue} B:${typeof briValue} K:${typeof kelvin}`);
 
       // Set all color properties at once (required by LIFX LAN protocol)
       await new Promise<void>((resolve, reject) => {
-        light.color(hue65535, sat65535, briValue, kelvin, duration, () => resolve());
+        console.log(`[LAN Control] Calling light.color with:`, {hueValue, satValue, briValue, kelvin, duration});
+        light.color(hueValue, satValue, briValue, kelvin, duration, () => resolve());
         setTimeout(() => reject(new Error("Control timeout")), 10000);
       });
       console.log(`[LAN Control] Command sent successfully`);
