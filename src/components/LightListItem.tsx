@@ -238,7 +238,6 @@ ${light.saturation > 0 ? `**Color Mode:** ${light.hue}° hue at ${light.saturati
               text={light.power ? "Powered" : "Off"}
               color={light.power ? Color.Green : Color.Red}
             />
-            <Detail.Metadata.TagList.Item text={light.saturation > 0 ? "Color" : "White"} color={Color.Blue} />
           </Detail.Metadata.TagList>
         </Detail.Metadata>
       }
