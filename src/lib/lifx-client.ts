@@ -20,7 +20,15 @@ export class LIFXClientManager {
     if (preferences.enableLanDiscovery) {
       try {
         const timeout = parseInt(preferences.lanTimeout) || 5000;
-        this.lanClient = new LIFXLanClient();
+        const stateTimeout = parseInt(preferences.lanStateTimeout) || 5000;
+        const retryAttempts = parseInt(preferences.lanRetryAttempts) || 3;
+        const cooldownPeriod = parseInt(preferences.lanCooldownPeriod) || 2000;
+
+        this.lanClient = new LIFXLanClient({
+          stateTimeout,
+          retryAttempts,
+          cooldownPeriod,
+        });
         await this.lanClient.initialize(timeout);
         this.connectionState.lanAvailable = true;
       } catch (error) {

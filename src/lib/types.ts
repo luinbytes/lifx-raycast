@@ -45,6 +45,9 @@ export interface Preferences {
   defaultFadeDuration: string;
   lanTimeout: string;
   enableLanDiscovery: boolean;
+  lanStateTimeout: string;
+  lanRetryAttempts: string;
+  lanCooldownPeriod: string;
 }
 
 export interface ConnectionState {

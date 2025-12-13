@@ -14,10 +14,24 @@ interface LifxLanLight {
 export class LIFXLanClient {
   private client: Client;
   private lights: Map<string, LifxLanLight>;
+  private lastControlTime: Map<string, number> = new Map();
+  private cachedStates: Map<string, LIFXLight> = new Map();
+  private consecutiveFailures: Map<string, number> = new Map();
 
-  constructor() {
+  // Configurable settings with defaults
+  private stateTimeout = 5000;
+  private retryAttempts = 3;
+  private cooldownPeriod = 2000;
+
+  constructor(options?: { stateTimeout?: number; retryAttempts?: number; cooldownPeriod?: number }) {
     this.client = new Client();
     this.lights = new Map();
+
+    if (options) {
+      if (options.stateTimeout) this.stateTimeout = options.stateTimeout;
+      if (options.retryAttempts) this.retryAttempts = options.retryAttempts;
+      if (options.cooldownPeriod) this.cooldownPeriod = options.cooldownPeriod;
+    }
   }
 
   async initialize(timeout: number): Promise<void> {
@@ -42,22 +56,73 @@ export class LIFXLanClient {
     });
   }
 
+  /**
+   * Helper to wait for specified milliseconds
+   */
+  private async sleep(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  /**
+   * Retry getState with exponential backoff
+   */
+  private async getStateWithRetry(id: string, lanLight: LifxLanLight): Promise<any> {
+    const maxRetries = this.retryAttempts;
+
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      const timeout = this.stateTimeout * Math.pow(1.5, attempt); // Exponential backoff
+
+      const state = await new Promise<any>((resolve) => {
+        const timer = setTimeout(() => {
+          if (attempt === maxRetries - 1) {
+            console.warn(`[LAN Discovery] getState timeout for light ${id.substring(0, 8)} (attempt ${attempt + 1}/${maxRetries})`);
+          }
+          resolve(null);
+        }, timeout);
+
+        lanLight.getState((err, data) => {
+          clearTimeout(timer);
+          resolve(err ? null : data);
+        });
+      });
+
+      if (state) {
+        // Success - reset failure counter
+        this.consecutiveFailures.set(id, 0);
+        return state;
+      }
+
+      // Wait before retry (except on last attempt)
+      if (attempt < maxRetries - 1) {
+        await this.sleep(500 * (attempt + 1)); // Progressive delay
+      }
+    }
+
+    // All retries failed
+    const failures = (this.consecutiveFailures.get(id) || 0) + 1;
+    this.consecutiveFailures.set(id, failures);
+    return null;
+  }
+
   async getLights(): Promise<LIFXLight[]> {
     const lights: LIFXLight[] = [];
     console.log(`[LAN Discovery] Querying ${this.lights.size} lights for state...`);
 
     for (const [id, lanLight] of this.lights) {
-      const state = await new Promise<any>((resolve) => {
-        const timeout = setTimeout(() => {
-          console.warn(`[LAN Discovery] getState timeout for light ${id.substring(0, 8)}`);
-          resolve(null);
-        }, 3000);
+      // Cooldown: Wait if light was recently controlled
+      const lastControl = this.lastControlTime.get(id);
+      if (lastControl) {
+        const timeSinceControl = Date.now() - lastControl;
 
-        lanLight.getState((err, data) => {
-          clearTimeout(timeout);
-          resolve(err ? null : data);
-        });
-      });
+        if (timeSinceControl < this.cooldownPeriod) {
+          const waitTime = this.cooldownPeriod - timeSinceControl;
+          console.log(`[LAN Discovery] Waiting ${waitTime}ms for light ${id.substring(0, 8)} to settle after control`);
+          await this.sleep(waitTime);
+        }
+      }
+
+      // Try to get state with retry logic
+      const state = await this.getStateWithRetry(id, lanLight);
 
       if (state) {
         console.log(`[LAN Discovery] Raw state from bulb:`, state.color);
@@ -65,7 +130,7 @@ export class LIFXLanClient {
         // IMPORTANT: The lifx-lan-client library handles ALL conversions for us!
         // When READING (getState): ALL values are already in human-readable ranges (hue 0-360, sat/bri 0-100)
         // When WRITING (color): ALL values should be in human-readable ranges (hue 0-360, sat/bri 0-100)
-        const lightData = {
+        const lightData: LIFXLight = {
           id,
           label: state.label || `Light ${id.substring(0, 8)}`,
           power: state.power === 1,
@@ -77,8 +142,27 @@ export class LIFXLanClient {
           source: "lan",
           reachable: true,
         };
+
+        // Cache the successful state
+        this.cachedStates.set(id, lightData);
+
         console.log(`[LAN Discovery] ${lightData.label}: Power:${lightData.power} H:${lightData.hue}° S:${lightData.saturation}% B:${lightData.brightness}% K:${lightData.kelvin}K`);
         lights.push(lightData);
+      } else {
+        // Graceful degradation: Use cached state if available
+        const failures = this.consecutiveFailures.get(id) || 0;
+        const cachedState = this.cachedStates.get(id);
+
+        if (cachedState && failures < 3) {
+          console.log(`[LAN Discovery] Using cached state for light ${id.substring(0, 8)} (${failures} consecutive failures)`);
+          lights.push({
+            ...cachedState,
+            connected: false, // Mark as not currently connected
+            reachable: false,
+          });
+        } else {
+          console.warn(`[LAN Discovery] Dropping light ${id.substring(0, 8)} after ${failures} consecutive failures`);
+        }
       }
     }
 
@@ -92,6 +176,9 @@ export class LIFXLanClient {
     console.log(`[LAN Control] Light: ${lightId.substring(0, 8)}, Requested:`, control);
 
     const duration = control.duration ?? 1000;
+
+    // Track control time for cooldown logic
+    this.lastControlTime.set(lightId, Date.now());
 
     // Handle power separately
     if (control.power !== undefined) {
