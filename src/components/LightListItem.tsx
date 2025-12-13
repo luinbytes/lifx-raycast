@@ -241,7 +241,7 @@ export function LightListItem({ light, client, onUpdate }: Props) {
               title={light.power ? "Turn Off" : "Turn On"}
               icon={light.power ? Icon.PowerOff : Icon.Power}
               onAction={togglePower}
-              shortcut={{ modifiers: ["cmd", "shift"], key: "p" }}
+              shortcut={{ modifiers: ["ctrl", "shift"], key: "p" }}
             />
           </ActionPanel.Section>
 
@@ -250,19 +250,19 @@ export function LightListItem({ light, client, onUpdate }: Props) {
               title="Set Brightness"
               icon={Icon.Sun}
               target={<BrightnessControl light={light} client={client} onComplete={onUpdate} />}
-              shortcut={{ modifiers: ["cmd", "shift"], key: "b" }}
+              shortcut={{ modifiers: ["ctrl", "shift"], key: "b" }}
             />
             <Action.Push
               title="Set Color"
               icon={Icon.Pencil}
               target={<ColorPicker light={light} client={client} onComplete={onUpdate} />}
-              shortcut={{ modifiers: ["cmd", "shift"], key: "c" }}
+              shortcut={{ modifiers: ["ctrl", "shift"], key: "c" }}
             />
             <Action.Push
               title="Set Temperature"
               icon={Icon.Temperature}
               target={<TemperatureControl light={light} client={client} onComplete={onUpdate} />}
-              shortcut={{ modifiers: ["cmd", "shift"], key: "t" }}
+              shortcut={{ modifiers: ["ctrl", "shift"], key: "t" }}
             />
           </ActionPanel.Section>
 
@@ -272,7 +272,7 @@ export function LightListItem({ light, client, onUpdate }: Props) {
                 key={scene.name}
                 title={`${scene.icon} ${scene.name}`}
                 onAction={() => applyScene(scene)}
-                shortcut={idx < 9 ? { modifiers: ["cmd", "shift"], key: (idx + 1).toString() as any } : undefined}
+                shortcut={idx < 9 ? { modifiers: ["ctrl", "shift"], key: (idx + 1).toString() as any } : undefined}
               />
             ))}
           </ActionPanel.Section>
@@ -282,25 +282,25 @@ export function LightListItem({ light, client, onUpdate }: Props) {
               title="100% Brightness"
               icon={Icon.Sun}
               onAction={() => setBrightness(100)}
-              shortcut={{ modifiers: ["cmd"], key: "1" }}
+              shortcut={{ modifiers: ["ctrl"], key: "1" }}
             />
             <Action
               title="75% Brightness"
               icon={Icon.Sun}
               onAction={() => setBrightness(75)}
-              shortcut={{ modifiers: ["cmd"], key: "2" }}
+              shortcut={{ modifiers: ["ctrl"], key: "2" }}
             />
             <Action
               title="50% Brightness"
               icon={Icon.Circle}
               onAction={() => setBrightness(50)}
-              shortcut={{ modifiers: ["cmd"], key: "3" }}
+              shortcut={{ modifiers: ["ctrl"], key: "3" }}
             />
             <Action
               title="25% Brightness"
               icon={Icon.Circle}
               onAction={() => setBrightness(25)}
-              shortcut={{ modifiers: ["cmd"], key: "4" }}
+              shortcut={{ modifiers: ["ctrl"], key: "4" }}
             />
           </ActionPanel.Section>
 
@@ -315,13 +315,13 @@ export function LightListItem({ light, client, onUpdate }: Props) {
               title="Save as Profile"
               icon={Icon.SaveDocument}
               target={<SaveProfileForm light={light} onSave={onUpdate} />}
-              shortcut={{ modifiers: ["cmd", "shift"], key: "s" }}
+              shortcut={{ modifiers: ["ctrl", "shift"], key: "s" }}
             />
             <Action.Push
               title="Load Profile"
               icon={Icon.Document}
               target={<LoadProfileList light={light} client={client} onLoad={onUpdate} />}
-              shortcut={{ modifiers: ["cmd", "shift"], key: "l" }}
+              shortcut={{ modifiers: ["ctrl", "shift"], key: "l" }}
             />
           </ActionPanel.Section>
         </ActionPanel>

@@ -81,7 +81,7 @@ export default function Command() {
                   <Action.CopyToClipboard
                     title="Copy Profile Name"
                     content={profile.name}
-                    shortcut={{ modifiers: ["cmd"], key: "c" }}
+                    shortcut={{ modifiers: ["ctrl"], key: "c" }}
                   />
                 </ActionPanel.Section>
               </ActionPanel>
