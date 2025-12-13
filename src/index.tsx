@@ -73,14 +73,17 @@ export default function Command() {
   }, []);
 
   async function refreshLights() {
+    console.log(`[UI] Refresh requested`);
     try {
       const discoveredLights = await client.discoverLights();
+      console.log(`[UI] Setting ${discoveredLights.length} lights in state`);
       setLights(discoveredLights);
       showToast({
         style: Toast.Style.Success,
         title: `Refreshed - ${discoveredLights.length} light${discoveredLights.length !== 1 ? "s" : ""}`,
       });
     } catch (error) {
+      console.error(`[UI] Refresh failed:`, error);
       showToast({
         style: Toast.Style.Failure,
         title: "Failed to refresh lights",

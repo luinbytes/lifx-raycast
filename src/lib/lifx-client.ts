@@ -47,6 +47,7 @@ export class LIFXClientManager {
   }
 
   async discoverLights(): Promise<LIFXLight[]> {
+    console.log(`[Client Manager] Starting light discovery...`);
     const lights: Map<string, LIFXLight> = new Map();
 
     // Prefer LAN lights (faster, local)
@@ -54,6 +55,7 @@ export class LIFXClientManager {
       try {
         const lanLights = await this.lanClient.getLights();
         lanLights.forEach((light) => lights.set(light.id, light));
+        console.log(`[Client Manager] Found ${lanLights.length} LAN lights`);
       } catch (error) {
         console.warn("Failed to get LAN lights:", error);
       }
@@ -68,6 +70,7 @@ export class LIFXClientManager {
             lights.set(light.id, light);
           }
         });
+        console.log(`[Client Manager] Found ${httpLights.length} HTTP lights`);
       } catch (error) {
         console.warn("Failed to get HTTP lights:", error);
       }
@@ -75,6 +78,7 @@ export class LIFXClientManager {
 
     this.connectionState.activeLights = Array.from(lights.values());
     this.connectionState.lastDiscovery = new Date();
+    console.log(`[Client Manager] Total lights discovered: ${this.connectionState.activeLights.length}`);
     return this.connectionState.activeLights;
   }
 
@@ -88,13 +92,17 @@ export class LIFXClientManager {
     const light = this.connectionState.activeLights.find((l) => l.id === lightId);
     if (!light) throw new Error("Light not found");
 
+    console.log(`[Client Manager] Controlling ${light.label} via ${light.source}:`, control);
+
     // Try preferred source first, fallback to alternative
     try {
       if (light.source === "lan" && this.lanClient) {
         await this.lanClient.control(lightId, control);
+        console.log(`[Client Manager] Control succeeded via LAN`);
         return;
       } else if (this.httpClient) {
         await this.httpClient.control(lightId, control);
+        console.log(`[Client Manager] Control succeeded via HTTP`);
         return;
       }
     } catch (error) {
@@ -103,8 +111,10 @@ export class LIFXClientManager {
       // Fallback to alternative source
       if (light.source === "lan" && this.httpClient) {
         await this.httpClient.control(lightId, control);
+        console.log(`[Client Manager] Control succeeded via HTTP (fallback)`);
       } else if (light.source === "http" && this.lanClient) {
         await this.lanClient.control(lightId, control);
+        console.log(`[Client Manager] Control succeeded via LAN (fallback)`);
       } else {
         throw error;
       }
