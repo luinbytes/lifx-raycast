@@ -41,7 +41,6 @@ export default function Command() {
   const [storage] = useState(() => new ProfileStorage());
   const [nlpParser] = useState(() => new NaturalLanguageParser());
   const [searchText, setSearchText] = useState("");
-  const [lastProcessedCommand, setLastProcessedCommand] = useState<string>("");
   const preferences = getPreferenceValues<Preferences>();
 
   const { isLoading, revalidate } = usePromise(
@@ -331,16 +330,11 @@ export default function Command() {
     setSearchText(text);
   }
 
-  // Parse the current search text to see if it's a valid NLP command
-  function getParsedCommand(): ParsedCommand | null {
-    if (searchText.trim().length < 3) return null;
-    const parsed = nlpParser.parse(searchText.trim(), profiles);
-    return parsed.confidence >= 0.7 ? parsed : null;
-  }
-
   async function executeSearchCommand() {
-    const parsed = getParsedCommand();
-    if (parsed) {
+    if (searchText.trim().length < 3) return;
+
+    const parsed = nlpParser.parse(searchText.trim(), profiles);
+    if (parsed && parsed.confidence >= 0.7) {
       await executeNaturalLanguageCommand(parsed);
     }
   }
@@ -392,19 +386,18 @@ export default function Command() {
     </ActionPanel.Section>
   );
 
-  // Get NLP command action if available
-  const nlpCommandAction = getParsedCommand() ? (
-    <Action
-      title={`Execute: ${nlpParser.describeCommand(getParsedCommand()!)}`}
-      icon={Icon.Wand}
-      onAction={executeSearchCommand}
-      shortcut={{ key: "return" }}
-    />
-  ) : null;
-
   const allLightsActions = (
     <>
-      {nlpCommandAction && <ActionPanel.Section title="Natural Language">{nlpCommandAction}</ActionPanel.Section>}
+      {searchText.trim().length >= 3 && (
+        <ActionPanel.Section title="Natural Language">
+          <Action
+            title="Execute Natural Language Command"
+            icon={Icon.Wand}
+            onAction={executeSearchCommand}
+            shortcut={{ key: "return" }}
+          />
+        </ActionPanel.Section>
+      )}
       <ActionPanel.Section title="All Lights">
         <Action
           title="Turn All On"
@@ -592,7 +585,7 @@ export default function Command() {
                   light={light}
                   client={client}
                   onUpdate={refreshLights}
-                  nlpCommand={getParsedCommand()}
+                  hasNlpCommand={searchText.trim().length >= 3}
                   onExecuteNlp={executeSearchCommand}
                 />
               ))}
@@ -686,7 +679,7 @@ export default function Command() {
                 light={light}
                 client={client}
                 onUpdate={refreshLights}
-                nlpCommand={getParsedCommand()}
+                hasNlpCommand={searchText.trim().length >= 3}
                 onExecuteNlp={executeSearchCommand}
               />
             ))}
