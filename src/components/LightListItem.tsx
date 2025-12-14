@@ -12,7 +12,6 @@ interface Props {
   light: LIFXLight;
   client: LIFXClientManager;
   onUpdate: () => void;
-  hasNlpCommand?: boolean;
   onExecuteNlp?: () => Promise<void>;
 }
 
@@ -146,7 +145,7 @@ function LoadProfileList({ light, client, onLoad }: { light: LIFXLight; client: 
   );
 }
 
-function LightDetailView({ light, client, onUpdate, hasNlpCommand, onExecuteNlp }: Props) {
+function LightDetailView({ light, client, onUpdate, onExecuteNlp }: Props) {
   async function togglePower() {
     try {
       await client.controlLight(light.id, { power: !light.power });
@@ -246,7 +245,7 @@ ${light.saturation > 0 ? `**Color Mode:** ${light.hue}° hue at ${light.saturati
       }
       actions={
         <ActionPanel>
-          {hasNlpCommand && onExecuteNlp && (
+          {onExecuteNlp && (
             <ActionPanel.Section title="Natural Language">
               <Action
                 title="Execute Natural Language Command"
@@ -313,7 +312,7 @@ ${light.saturation > 0 ? `**Color Mode:** ${light.hue}° hue at ${light.saturati
   );
 }
 
-export function LightListItem({ light, client, onUpdate, hasNlpCommand, onExecuteNlp }: Props) {
+export function LightListItem({ light, client, onUpdate, onExecuteNlp }: Props) {
   console.log(`[LightListItem] ${light.label}: H:${light.hue}° S:${light.saturation}% B:${light.brightness}%`);
 
   // Determine icon color based on light state
@@ -432,7 +431,7 @@ export function LightListItem({ light, client, onUpdate, hasNlpCommand, onExecut
       accessories={accessories}
       actions={
         <ActionPanel>
-          {hasNlpCommand && onExecuteNlp && (
+          {onExecuteNlp && (
             <ActionPanel.Section title="Natural Language">
               <Action
                 title="Execute Natural Language Command"
@@ -452,7 +451,7 @@ export function LightListItem({ light, client, onUpdate, hasNlpCommand, onExecut
             <Action.Push
               title="View Details"
               icon={Icon.Eye}
-              target={<LightDetailView light={light} client={client} onUpdate={onUpdate} hasNlpCommand={hasNlpCommand} onExecuteNlp={onExecuteNlp} />}
+              target={<LightDetailView light={light} client={client} onUpdate={onUpdate} onExecuteNlp={onExecuteNlp} />}
               shortcut={{ modifiers: ["cmd"], key: "i" }}
             />
           </ActionPanel.Section>

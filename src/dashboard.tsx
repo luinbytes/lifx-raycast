@@ -388,16 +388,6 @@ export default function Command() {
 
   const allLightsActions = (
     <>
-      {searchText.trim().length >= 3 && (
-        <ActionPanel.Section title="Natural Language">
-          <Action
-            title="Execute Natural Language Command"
-            icon={Icon.Wand}
-            onAction={executeSearchCommand}
-            shortcut={{ key: "return" }}
-          />
-        </ActionPanel.Section>
-      )}
       <ActionPanel.Section title="All Lights">
         <Action
           title="Turn All On"
@@ -585,7 +575,6 @@ export default function Command() {
                   light={light}
                   client={client}
                   onUpdate={refreshLights}
-                  hasNlpCommand={searchText.trim().length >= 3}
                   onExecuteNlp={executeSearchCommand}
                 />
               ))}
@@ -679,7 +668,6 @@ export default function Command() {
                 light={light}
                 client={client}
                 onUpdate={refreshLights}
-                hasNlpCommand={searchText.trim().length >= 3}
                 onExecuteNlp={executeSearchCommand}
               />
             ))}
