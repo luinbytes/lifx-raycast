@@ -4,7 +4,6 @@ import { LIFXClientManager } from "../lib/lifx-client";
 import { BrightnessControl } from "./BrightnessControl";
 import { ColorPicker } from "./ColorPicker";
 import { TemperatureControl } from "./TemperatureControl";
-import { ParsedCommand } from "../lib/nlp-parser";
 
 interface Props {
   light: LIFXLight;
