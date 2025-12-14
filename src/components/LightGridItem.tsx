@@ -294,22 +294,20 @@ export function LightGridItem({ light, client, onUpdate, onExecuteNlp }: Props) 
       ]}
       actions={
         <ActionPanel>
-          {onExecuteNlp && (
-            <ActionPanel.Section title="Natural Language">
-              <Action
-                title="Execute Natural Language Command"
-                icon={Icon.Wand}
-                onAction={onExecuteNlp}
-                shortcut={{ modifiers: ["ctrl"], key: "return" }}
-              />
-            </ActionPanel.Section>
-          )}
           <ActionPanel.Section title="Quick Actions">
             <Action
               title={light.power ? "Turn Off" : "Turn On"}
               icon={light.power ? Icon.PowerOff : Icon.Power}
               onAction={togglePower}
             />
+            {onExecuteNlp && (
+              <Action
+                title="Execute Natural Language Command"
+                icon={Icon.Wand}
+                onAction={onExecuteNlp}
+                shortcut={{ modifiers: ["ctrl"], key: "return" }}
+              />
+            )}
             <Action.Push
               title="View Details"
               icon={Icon.Eye}

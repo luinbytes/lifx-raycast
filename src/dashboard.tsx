@@ -225,28 +225,54 @@ export default function Command() {
       return; // Don't show error for unknown commands, just let search work normally
     }
 
-    try {
-      const description = nlpParser.describeCommand(command);
-      showToast({
-        style: Toast.Style.Animated,
-        title: description,
-      });
+    const description = nlpParser.describeCommand(command);
+    showToast({
+      style: Toast.Style.Animated,
+      title: description,
+    });
 
+    try {
       // Handle compound commands
       if (command.type === "compound" && command.subCommands) {
+        let successCount = 0;
+        let failCount = 0;
+
         for (const subCommand of command.subCommands) {
-          await executeSingleCommand(subCommand);
+          try {
+            await executeSingleCommand(subCommand);
+            successCount++;
+          } catch (error) {
+            console.error("Subcommand failed:", error);
+            failCount++;
+          }
+        }
+
+        // Clear search text after execution
+        setSearchText("");
+
+        if (failCount === 0) {
+          showToast({
+            style: Toast.Style.Success,
+            title: description,
+          });
+        } else if (successCount > 0) {
+          showToast({
+            style: Toast.Style.Success,
+            title: `Partially completed: ${successCount}/${successCount + failCount} commands`,
+          });
+        } else {
+          throw new Error("All commands failed");
         }
       } else {
         await executeSingleCommand(command);
-      }
 
-      // Clear search text after successful execution
-      setSearchText("");
-      showToast({
-        style: Toast.Style.Success,
-        title: description,
-      });
+        // Clear search text after successful execution
+        setSearchText("");
+        showToast({
+          style: Toast.Style.Success,
+          title: description,
+        });
+      }
     } catch (error) {
       showToast({
         style: Toast.Style.Failure,
@@ -257,11 +283,16 @@ export default function Command() {
   }
 
   async function executeSingleCommand(command: ParsedCommand) {
+    // Safety check for empty lights array
+    if (lights.length === 0) {
+      throw new Error("No lights available");
+    }
+
     switch (command.type) {
       case "power":
         if (command.lightSelector === "all") {
           await controlAllLights(command.action === "on" ? "on" : "off");
-        } else if (lights.length > 0) {
+        } else {
           await client.controlLight(lights[0].id, { power: command.action === "on" });
           await new Promise((resolve) => setTimeout(resolve, 500));
           await refreshLights();
@@ -316,11 +347,7 @@ export default function Command() {
         if (profile) {
           await applyProfile(profile);
         } else {
-          showToast({
-            style: Toast.Style.Failure,
-            title: "Profile not found",
-            message: `Could not find profile: ${command.profileName}`,
-          });
+          throw new Error(`Profile not found: ${command.profileName}`);
         }
         break;
     }
@@ -333,9 +360,33 @@ export default function Command() {
   async function executeSearchCommand() {
     if (searchText.trim().length < 3) return;
 
+    // Check if there are any lights available
+    if (lights.length === 0) {
+      showToast({
+        style: Toast.Style.Failure,
+        title: "No lights available",
+        message: "Please make sure your lights are connected and powered on",
+      });
+      return;
+    }
+
     const parsed = nlpParser.parse(searchText.trim(), profiles);
     if (parsed && parsed.confidence >= 0.7) {
       await executeNaturalLanguageCommand(parsed);
+    } else if (parsed && parsed.type !== "unknown" && parsed.confidence > 0.4) {
+      // Command was recognized but confidence is low
+      showToast({
+        style: Toast.Style.Failure,
+        title: "Command not clear",
+        message: "Try rephrasing your command or be more specific",
+      });
+    } else {
+      // Command not recognized at all
+      showToast({
+        style: Toast.Style.Failure,
+        title: "Command not recognized",
+        message: "Try commands like 'set to red', 'dim a bit', or 'turn on'",
+      });
     }
   }
 

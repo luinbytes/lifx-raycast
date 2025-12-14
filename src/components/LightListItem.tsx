@@ -418,16 +418,6 @@ export function LightListItem({ light, client, onUpdate, onExecuteNlp }: Props) 
       accessories={accessories}
       actions={
         <ActionPanel>
-          {onExecuteNlp && (
-            <ActionPanel.Section title="Natural Language">
-              <Action
-                title="Execute Natural Language Command"
-                icon={Icon.Wand}
-                onAction={onExecuteNlp}
-                shortcut={{ modifiers: ["ctrl"], key: "return" }}
-              />
-            </ActionPanel.Section>
-          )}
           <ActionPanel.Section title="Quick Actions">
             <Action
               title={light.power ? "Turn Off" : "Turn On"}
@@ -435,6 +425,14 @@ export function LightListItem({ light, client, onUpdate, onExecuteNlp }: Props) 
               onAction={togglePower}
               shortcut={{ modifiers: ["ctrl", "shift"], key: "p" }}
             />
+            {onExecuteNlp && (
+              <Action
+                title="Execute Natural Language Command"
+                icon={Icon.Wand}
+                onAction={onExecuteNlp}
+                shortcut={{ modifiers: ["ctrl"], key: "return" }}
+              />
+            )}
             <Action.Push
               title="View Details"
               icon={Icon.Eye}
