@@ -20,6 +20,7 @@ import { ProfileStorage } from "./lib/storage";
 import { LIFXLight, LightProfile, ProfileLightState } from "./lib/types";
 import { LightListItem } from "./components/LightListItem";
 import { LightGridItem } from "./components/LightGridItem";
+import { NaturalLanguageParser, ParsedCommand } from "./lib/nlp-parser";
 
 type ViewMode = "list" | "grid";
 type DashboardView = "lights" | "profiles" | "save-profile";
@@ -38,6 +39,9 @@ export default function Command() {
   const [dashboardView, setDashboardView] = useCachedState<DashboardView>("dashboard-view", "lights");
   const [client] = useState(() => new LIFXClientManager());
   const [storage] = useState(() => new ProfileStorage());
+  const [nlpParser] = useState(() => new NaturalLanguageParser());
+  const [searchText, setSearchText] = useState("");
+  const [lastProcessedCommand, setLastProcessedCommand] = useState<string>("");
   const preferences = getPreferenceValues<Preferences>();
 
   const { isLoading, revalidate } = usePromise(
@@ -214,6 +218,129 @@ export default function Command() {
         title: "Failed to delete profile",
         message: error instanceof Error ? error.message : String(error),
       });
+    }
+  }
+
+  async function executeNaturalLanguageCommand(command: ParsedCommand) {
+    if (command.type === "unknown") {
+      return; // Don't show error for unknown commands, just let search work normally
+    }
+
+    try {
+      const description = nlpParser.describeCommand(command);
+      showToast({
+        style: Toast.Style.Animated,
+        title: description,
+      });
+
+      // Handle compound commands
+      if (command.type === "compound" && command.subCommands) {
+        for (const subCommand of command.subCommands) {
+          await executeSingleCommand(subCommand);
+        }
+      } else {
+        await executeSingleCommand(command);
+      }
+
+      // Clear search text after successful execution
+      setSearchText("");
+      showToast({
+        style: Toast.Style.Success,
+        title: description,
+      });
+    } catch (error) {
+      showToast({
+        style: Toast.Style.Failure,
+        title: "Failed to execute command",
+        message: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  async function executeSingleCommand(command: ParsedCommand) {
+    switch (command.type) {
+      case "power":
+        if (command.lightSelector === "all") {
+          await controlAllLights(command.action === "on" ? "on" : "off");
+        } else if (lights.length > 0) {
+          await client.controlLight(lights[0].id, { power: command.action === "on" });
+          await new Promise((resolve) => setTimeout(resolve, 500));
+          await refreshLights();
+        }
+        break;
+
+      case "color":
+        if (command.color) {
+          const targetLights = command.lightSelector === "all" ? lights : [lights[0]];
+          for (const light of targetLights) {
+            await client.controlLight(light.id, {
+              hue: command.color.hue,
+              saturation: command.color.saturation,
+            });
+          }
+          await new Promise((resolve) => setTimeout(resolve, 500));
+          await refreshLights();
+        }
+        break;
+
+      case "brightness":
+        if (command.value !== undefined) {
+          const targetLights = command.lightSelector === "all" ? lights : [lights[0]];
+          for (const light of targetLights) {
+            let newBrightness = command.value;
+            if (command.action === "adjust") {
+              newBrightness = Math.max(0, Math.min(100, light.brightness + command.value));
+            }
+            await client.controlLight(light.id, { brightness: newBrightness });
+          }
+          await new Promise((resolve) => setTimeout(resolve, 500));
+          await refreshLights();
+        }
+        break;
+
+      case "temperature":
+        if (command.temperature) {
+          const targetLights = command.lightSelector === "all" ? lights : [lights[0]];
+          for (const light of targetLights) {
+            await client.controlLight(light.id, {
+              kelvin: command.temperature,
+              saturation: 0, // Make sure we're in white mode
+            });
+          }
+          await new Promise((resolve) => setTimeout(resolve, 500));
+          await refreshLights();
+        }
+        break;
+
+      case "profile":
+        const profile = profiles.find((p) => p.name === command.profileName);
+        if (profile) {
+          await applyProfile(profile);
+        } else {
+          showToast({
+            style: Toast.Style.Failure,
+            title: "Profile not found",
+            message: `Could not find profile: ${command.profileName}`,
+          });
+        }
+        break;
+    }
+  }
+
+  function handleSearchTextChange(text: string) {
+    setSearchText(text);
+
+    // Only process if the text ends with a trigger (Enter will be simulated by the user pressing enter)
+    // We'll use a debounce-like approach: only process when user stops typing for a moment
+    // For now, we'll process on every change but with a check for duplicates
+    if (text.trim().length > 2 && text.trim() !== lastProcessedCommand) {
+      const parsed = nlpParser.parse(text.trim(), profiles);
+
+      // Only auto-execute high-confidence commands
+      if (parsed.confidence >= 0.8) {
+        setLastProcessedCommand(text.trim());
+        executeNaturalLanguageCommand(parsed);
+      }
     }
   }
 
@@ -412,7 +539,9 @@ export default function Command() {
         columns={4}
         aspectRatio="1"
         fit={Grid.Fit.Fill}
-        searchBarPlaceholder="Search lights..."
+        searchBarPlaceholder="Search lights or type a command (e.g., 'turn on', 'set to red', 'dim a bit')..."
+        searchText={searchText}
+        onSearchTextChange={handleSearchTextChange}
         actions={
           lights.length === 0 && !isLoading ? (
             <ActionPanel>
@@ -459,7 +588,9 @@ export default function Command() {
   return (
     <List
       isLoading={isLoading}
-      searchBarPlaceholder="Search lights..."
+      searchBarPlaceholder="Search lights or type a command (e.g., 'turn on', 'set to red', 'dim a bit')..."
+      searchText={searchText}
+      onSearchTextChange={handleSearchTextChange}
       actions={
         lights.length === 0 && !isLoading ? (
           <ActionPanel>
