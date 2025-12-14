@@ -35,6 +35,27 @@ const COLOR_MAP: Record<string, { hue: number; saturation: number }> = {
   lavender: { hue: 270, saturation: 40 },
   peach: { hue: 20, saturation: 70 },
   coral: { hue: 15, saturation: 80 },
+  // Color variations with adjectives
+  "light blue": { hue: 200, saturation: 60 },
+  "sky blue": { hue: 200, saturation: 70 },
+  "deep blue": { hue: 240, saturation: 100 },
+  "dark blue": { hue: 240, saturation: 100 },
+  "navy blue": { hue: 240, saturation: 100 },
+  "bright blue": { hue: 210, saturation: 100 },
+  "light red": { hue: 0, saturation: 60 },
+  "dark red": { hue: 0, saturation: 100 },
+  "bright red": { hue: 0, saturation: 100 },
+  "light green": { hue: 120, saturation: 60 },
+  "dark green": { hue: 120, saturation: 100 },
+  "bright green": { hue: 120, saturation: 100 },
+  "light purple": { hue: 270, saturation: 60 },
+  "dark purple": { hue: 270, saturation: 100 },
+  "light pink": { hue: 330, saturation: 50 },
+  "hot pink": { hue: 330, saturation: 100 },
+  "light yellow": { hue: 60, saturation: 60 },
+  "bright yellow": { hue: 60, saturation: 100 },
+  "light orange": { hue: 30, saturation: 70 },
+  "bright orange": { hue: 30, saturation: 100 },
 };
 
 // Brightness keywords and their values
@@ -193,14 +214,23 @@ export class NaturalLanguageParser {
   }
 
   private parseColorCommand(input: string): ParsedCommand {
-    // Look for color keywords
-    for (const [colorName, colorValue] of Object.entries(COLOR_MAP)) {
+    // Try to match multi-word colors first (like "deep blue", "sky blue")
+    const sortedColors = Object.entries(COLOR_MAP).sort((a, b) => b[0].length - a[0].length);
+
+    for (const [colorName, colorValue] of sortedColors) {
       const colorPatterns = [
-        new RegExp(`(?:set|change|make|turn)\\s+(?:it|the light[s]?)?\\s*(?:to)?\\s*${colorName}`, "i"),
+        // Direct patterns: "set to deep blue", "change to deep blue"
+        new RegExp(`(?:set|change|make|turn)\\s+(?:it|the light[s]?|them)?\\s*(?:to)?\\s*${colorName}\\b`, "i"),
+        // Just the color name: "deep blue"
         new RegExp(`^${colorName}$`, "i"),
-        new RegExp(`${colorName}\\s+(?:color|light)`, "i"),
-        new RegExp(`(?:go|switch to)\\s+${colorName}`, "i"),
-        new RegExp(`make\\s+(?:it|them)?\\s*${colorName}`, "i"),
+        // Color at the end: "set the light deep blue"
+        new RegExp(`(?:set|change|make)\\s+(?:the\\s+)?(?:light[s]?|it|them)\\s+${colorName}\\b`, "i"),
+        // With "color" keyword: "deep blue color"
+        new RegExp(`${colorName}\\s+(?:color|light)\\b`, "i"),
+        // Go/switch patterns: "go deep blue", "switch to deep blue"
+        new RegExp(`(?:go|switch)\\s+(?:to\\s+)?${colorName}\\b`, "i"),
+        // Make patterns: "make it deep blue", "make them deep blue"
+        new RegExp(`make\\s+(?:it|them|the\\s+light[s]?)?\\s*${colorName}\\b`, "i"),
       ];
 
       for (const pattern of colorPatterns) {
