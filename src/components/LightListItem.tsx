@@ -1,5 +1,5 @@
 import { List, ActionPanel, Action, Icon, Color, showToast, Toast, Form, popToRoot, Detail } from "@raycast/api";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { LIFXLight, LightProfile, ProfileLightState } from "../lib/types";
 import { LIFXClientManager } from "../lib/lifx-client";
 import { ProfileStorage } from "../lib/storage";
@@ -11,6 +11,7 @@ interface Props {
   light: LIFXLight;
   client: LIFXClientManager;
   onUpdate: () => void;
+  onExecuteNlp?: () => Promise<void>;
 }
 
 const COLOR_SCENES = [
@@ -93,9 +94,9 @@ function LoadProfileList({ light, client, onLoad }: { light: LIFXLight; client: 
   const [profiles, setProfiles] = useState<LightProfile[]>([]);
   const [storage] = useState(() => new ProfileStorage());
 
-  useState(() => {
+  useEffect(() => {
     storage.getProfiles().then(setProfiles);
-  });
+  }, []);
 
   async function applyProfile(profile: LightProfile) {
     try {
@@ -300,9 +301,7 @@ ${light.saturation > 0 ? `**Color Mode:** ${light.hue}° hue at ${light.saturati
   );
 }
 
-export function LightListItem({ light, client, onUpdate }: Props) {
-  console.log(`[LightListItem] ${light.label}: H:${light.hue}° S:${light.saturation}% B:${light.brightness}%`);
-
+export function LightListItem({ light, client, onUpdate, onExecuteNlp }: Props) {
   // Determine icon color based on light state
   const getTintColor = () => {
     if (!light.power) return Color.SecondaryText;
@@ -426,6 +425,14 @@ export function LightListItem({ light, client, onUpdate }: Props) {
               onAction={togglePower}
               shortcut={{ modifiers: ["ctrl", "shift"], key: "p" }}
             />
+            {onExecuteNlp && (
+              <Action
+                title="Execute Natural Language Command"
+                icon={Icon.Wand}
+                onAction={onExecuteNlp}
+                shortcut={{ modifiers: ["ctrl"], key: "return" }}
+              />
+            )}
             <Action.Push
               title="View Details"
               icon={Icon.Eye}

@@ -20,6 +20,7 @@ import { ProfileStorage } from "./lib/storage";
 import { LIFXLight, LightProfile, ProfileLightState } from "./lib/types";
 import { LightListItem } from "./components/LightListItem";
 import { LightGridItem } from "./components/LightGridItem";
+import { NaturalLanguageParser, ParsedCommand } from "./lib/nlp-parser";
 
 type ViewMode = "list" | "grid";
 type DashboardView = "lights" | "profiles" | "save-profile";
@@ -38,6 +39,8 @@ export default function Command() {
   const [dashboardView, setDashboardView] = useCachedState<DashboardView>("dashboard-view", "lights");
   const [client] = useState(() => new LIFXClientManager());
   const [storage] = useState(() => new ProfileStorage());
+  const [nlpParser] = useState(() => new NaturalLanguageParser());
+  const [searchText, setSearchText] = useState("");
   const preferences = getPreferenceValues<Preferences>();
 
   const { isLoading, revalidate } = usePromise(
@@ -217,6 +220,176 @@ export default function Command() {
     }
   }
 
+  async function executeNaturalLanguageCommand(command: ParsedCommand) {
+    if (command.type === "unknown") {
+      return; // Don't show error for unknown commands, just let search work normally
+    }
+
+    const description = nlpParser.describeCommand(command);
+    showToast({
+      style: Toast.Style.Animated,
+      title: description,
+    });
+
+    try {
+      // Handle compound commands
+      if (command.type === "compound" && command.subCommands) {
+        let successCount = 0;
+        let failCount = 0;
+
+        for (const subCommand of command.subCommands) {
+          try {
+            await executeSingleCommand(subCommand);
+            successCount++;
+          } catch (error) {
+            console.error("Subcommand failed:", error);
+            failCount++;
+          }
+        }
+
+        // Clear search text after execution
+        setSearchText("");
+
+        if (failCount === 0) {
+          showToast({
+            style: Toast.Style.Success,
+            title: description,
+          });
+        } else if (successCount > 0) {
+          showToast({
+            style: Toast.Style.Success,
+            title: `Partially completed: ${successCount}/${successCount + failCount} commands`,
+          });
+        } else {
+          throw new Error("All commands failed");
+        }
+      } else {
+        await executeSingleCommand(command);
+
+        // Clear search text after successful execution
+        setSearchText("");
+        showToast({
+          style: Toast.Style.Success,
+          title: description,
+        });
+      }
+    } catch (error) {
+      showToast({
+        style: Toast.Style.Failure,
+        title: "Failed to execute command",
+        message: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  async function executeSingleCommand(command: ParsedCommand) {
+    // Safety check for empty lights array
+    if (lights.length === 0) {
+      throw new Error("No lights available");
+    }
+
+    switch (command.type) {
+      case "power":
+        if (command.lightSelector === "all") {
+          await controlAllLights(command.action === "on" ? "on" : "off");
+        } else {
+          await client.controlLight(lights[0].id, { power: command.action === "on" });
+          await new Promise((resolve) => setTimeout(resolve, 500));
+          await refreshLights();
+        }
+        break;
+
+      case "color":
+        if (command.color) {
+          const targetLights = command.lightSelector === "all" ? lights : [lights[0]];
+          for (const light of targetLights) {
+            await client.controlLight(light.id, {
+              hue: command.color.hue,
+              saturation: command.color.saturation,
+            });
+          }
+          await new Promise((resolve) => setTimeout(resolve, 500));
+          await refreshLights();
+        }
+        break;
+
+      case "brightness":
+        if (command.value !== undefined) {
+          const targetLights = command.lightSelector === "all" ? lights : [lights[0]];
+          for (const light of targetLights) {
+            let newBrightness = command.value;
+            if (command.action === "adjust") {
+              newBrightness = Math.max(0, Math.min(100, light.brightness + command.value));
+            }
+            await client.controlLight(light.id, { brightness: newBrightness });
+          }
+          await new Promise((resolve) => setTimeout(resolve, 500));
+          await refreshLights();
+        }
+        break;
+
+      case "temperature":
+        if (command.temperature) {
+          const targetLights = command.lightSelector === "all" ? lights : [lights[0]];
+          for (const light of targetLights) {
+            await client.controlLight(light.id, {
+              kelvin: command.temperature,
+              saturation: 0, // Make sure we're in white mode
+            });
+          }
+          await new Promise((resolve) => setTimeout(resolve, 500));
+          await refreshLights();
+        }
+        break;
+
+      case "profile":
+        const profile = profiles.find((p) => p.name === command.profileName);
+        if (profile) {
+          await applyProfile(profile);
+        } else {
+          throw new Error(`Profile not found: ${command.profileName}`);
+        }
+        break;
+    }
+  }
+
+  function handleSearchTextChange(text: string) {
+    setSearchText(text);
+  }
+
+  async function executeSearchCommand() {
+    if (searchText.trim().length < 3) return;
+
+    // Check if there are any lights available
+    if (lights.length === 0) {
+      showToast({
+        style: Toast.Style.Failure,
+        title: "No lights available",
+        message: "Please make sure your lights are connected and powered on",
+      });
+      return;
+    }
+
+    const parsed = nlpParser.parse(searchText.trim(), profiles);
+    if (parsed && parsed.confidence >= 0.7) {
+      await executeNaturalLanguageCommand(parsed);
+    } else if (parsed && parsed.type !== "unknown" && parsed.confidence > 0.4) {
+      // Command was recognized but confidence is low
+      showToast({
+        style: Toast.Style.Failure,
+        title: "Command not clear",
+        message: "Try rephrasing your command or be more specific",
+      });
+    } else {
+      // Command not recognized at all
+      showToast({
+        style: Toast.Style.Failure,
+        title: "Command not recognized",
+        message: "Try commands like 'set to red', 'dim a bit', or 'turn on'",
+      });
+    }
+  }
+
   const toggleViewMode = () => {
     setViewMode(viewMode === "list" ? "grid" : "list");
   };
@@ -368,7 +541,7 @@ export default function Command() {
                         title="Apply Profile"
                         icon={Icon.Checkmark}
                         onAction={() => applyProfile(profile)}
-                        shortcut={{ modifiers: ["cmd"], key: "enter" }}
+                        shortcut={{ modifiers: ["ctrl"], key: "return" }}
                       />
                       <Action
                         title="Delete Profile"
@@ -412,7 +585,9 @@ export default function Command() {
         columns={4}
         aspectRatio="1"
         fit={Grid.Fit.Fill}
-        searchBarPlaceholder="Search lights..."
+        searchBarPlaceholder="Search lights or type a command (e.g., 'turn on', 'set to red', 'dim a bit'), then press Ctrl+Enter..."
+        searchText={searchText}
+        onSearchTextChange={handleSearchTextChange}
         actions={
           lights.length === 0 && !isLoading ? (
             <ActionPanel>
@@ -446,7 +621,13 @@ export default function Command() {
             )}
             <Grid.Section title="Your Lights" subtitle={`${lights.length} light${lights.length !== 1 ? "s" : ""}`}>
               {lights.map((light: LIFXLight) => (
-                <LightGridItem key={light.id} light={light} client={client} onUpdate={refreshLights} />
+                <LightGridItem
+                  key={light.id}
+                  light={light}
+                  client={client}
+                  onUpdate={refreshLights}
+                  onExecuteNlp={searchText.trim().length >= 3 ? executeSearchCommand : undefined}
+                />
               ))}
             </Grid.Section>
           </>
@@ -459,7 +640,9 @@ export default function Command() {
   return (
     <List
       isLoading={isLoading}
-      searchBarPlaceholder="Search lights..."
+      searchBarPlaceholder="Search lights or type a command (e.g., 'turn on', 'set to red', 'dim a bit'), then press Ctrl+Enter..."
+      searchText={searchText}
+      onSearchTextChange={handleSearchTextChange}
       actions={
         lights.length === 0 && !isLoading ? (
           <ActionPanel>
@@ -531,7 +714,13 @@ export default function Command() {
           )}
           <List.Section title="Individual Lights" subtitle={`${lights.length} light${lights.length !== 1 ? "s" : ""}`}>
             {lights.map((light: LIFXLight) => (
-              <LightListItem key={light.id} light={light} client={client} onUpdate={refreshLights} />
+              <LightListItem
+                key={light.id}
+                light={light}
+                client={client}
+                onUpdate={refreshLights}
+                onExecuteNlp={searchText.trim().length >= 3 ? executeSearchCommand : undefined}
+              />
             ))}
           </List.Section>
         </>

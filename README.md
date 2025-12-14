@@ -6,6 +6,13 @@ Control your LIFX smart lights directly from Raycast with local network discover
 
 ## Features
 
+### 🤖 Natural Language Control
+- **Type Commands Naturally**: Control your lights by typing commands like "set to red and dim a bit"
+- **Smart Parsing**: Understands colors, brightness levels, temperatures, and profiles
+- **Compound Commands**: Chain multiple actions together (e.g., "turn on, set to blue, and brighten")
+- **Profile Integration**: Load saved profiles by name (e.g., "switch to my night time profile")
+- **Keyboard Shortcut**: Press `Ctrl+Enter` to execute your command
+
 ### 🚀 Smart Connection
 - **LAN-First Discovery**: Fast local network control (no internet required)
 - **HTTP API Fallback**: Automatic fallback to cloud API if LAN unavailable
@@ -110,9 +117,26 @@ If LAN discovery fails or you want remote control, you can add an HTTP API token
 
 ## Usage
 
+### Natural Language Commands
+The easiest way to control your lights is with natural language:
+
+1. Open Raycast
+2. Search for "LIFX Dashboard"
+3. Type your command in the search bar
+4. Press `Ctrl+Enter` to execute
+
+**Example Commands:**
+- `turn on` - Turn on the first light
+- `set to red` - Change color to red
+- `dim a bit` - Decrease brightness by 15%
+- `set to warm white` - Set to 2700K temperature
+- `turn on and set to blue` - Compound command
+- `set to my sleep mode` - Load a saved profile
+- `all lights to 50%` - Control all lights at once
+
 ### Control Individual Lights
 1. Open Raycast
-2. Search for "Control Lights"
+2. Search for "LIFX Dashboard"
 3. Select a light
 4. Use actions to control it:
    - Power on/off
@@ -183,7 +207,7 @@ npm run fix-lint
 
 ```
 src/
-├── index.tsx                      # Main command (light list)
+├── dashboard.tsx                 # Main dashboard command
 ├── save-profile.tsx              # Save profile command
 ├── load-profile.tsx              # Load profile command
 ├── manage-profiles.tsx           # Manage profiles command
@@ -191,10 +215,12 @@ src/
 │   ├── lifx-client.ts            # Connection manager (LAN + HTTP)
 │   ├── lifx-lan.ts               # LAN client wrapper
 │   ├── lifx-http.ts              # HTTP client wrapper
+│   ├── nlp-parser.ts             # Natural language parser
 │   ├── storage.ts                # Profile storage
 │   └── types.ts                  # TypeScript interfaces
 ├── components/
 │   ├── LightListItem.tsx         # Light list item with actions
+│   ├── LightGridItem.tsx         # Light grid item with actions
 │   ├── BrightnessControl.tsx     # Brightness picker
 │   ├── ColorPicker.tsx           # Color picker
 │   └── TemperatureControl.tsx    # Temperature picker
