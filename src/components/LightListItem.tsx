@@ -6,11 +6,14 @@ import { ProfileStorage } from "../lib/storage";
 import { BrightnessControl } from "./BrightnessControl";
 import { ColorPicker } from "./ColorPicker";
 import { TemperatureControl } from "./TemperatureControl";
+import { ParsedCommand } from "../lib/nlp-parser";
 
 interface Props {
   light: LIFXLight;
   client: LIFXClientManager;
   onUpdate: () => void;
+  nlpCommand?: ParsedCommand | null;
+  onExecuteNlp?: () => Promise<void>;
 }
 
 const COLOR_SCENES = [
@@ -143,7 +146,26 @@ function LoadProfileList({ light, client, onLoad }: { light: LIFXLight; client: 
   );
 }
 
-function LightDetailView({ light, client, onUpdate }: Props) {
+function LightDetailView({ light, client, onUpdate, nlpCommand, onExecuteNlp }: Props) {
+  // Helper function to get NLP command description
+  const getNlpDescription = (cmd: ParsedCommand): string => {
+    switch (cmd.type) {
+      case "power":
+        return `Turn ${cmd.action === "on" ? "on" : "off"} ${cmd.lightSelector === "all" ? "all lights" : "light"}`;
+      case "color":
+        return `Set color`;
+      case "brightness":
+        return cmd.action === "adjust" ? "Adjust brightness" : "Set brightness";
+      case "temperature":
+        return "Set temperature";
+      case "profile":
+        return `Apply profile: ${cmd.profileName}`;
+      case "compound":
+        return "Execute compound command";
+      default:
+        return "Execute command";
+    }
+  };
   async function togglePower() {
     try {
       await client.controlLight(light.id, { power: !light.power });
@@ -243,6 +265,16 @@ ${light.saturation > 0 ? `**Color Mode:** ${light.hue}° hue at ${light.saturati
       }
       actions={
         <ActionPanel>
+          {nlpCommand && onExecuteNlp && (
+            <ActionPanel.Section title="Natural Language">
+              <Action
+                title={`Execute: ${getNlpDescription(nlpCommand)}`}
+                icon={Icon.Wand}
+                onAction={onExecuteNlp}
+                shortcut={{ key: "return" }}
+              />
+            </ActionPanel.Section>
+          )}
           <ActionPanel.Section title="Power">
             <Action
               title={light.power ? "Turn Off" : "Turn On"}
@@ -300,7 +332,7 @@ ${light.saturation > 0 ? `**Color Mode:** ${light.hue}° hue at ${light.saturati
   );
 }
 
-export function LightListItem({ light, client, onUpdate }: Props) {
+export function LightListItem({ light, client, onUpdate, nlpCommand, onExecuteNlp }: Props) {
   console.log(`[LightListItem] ${light.label}: H:${light.hue}° S:${light.saturation}% B:${light.brightness}%`);
 
   // Determine icon color based on light state
@@ -411,6 +443,26 @@ export function LightListItem({ light, client, onUpdate }: Props) {
     }
   }
 
+  // Helper function to get NLP command description
+  const getNlpDescription = (cmd: ParsedCommand): string => {
+    switch (cmd.type) {
+      case "power":
+        return `Turn ${cmd.action === "on" ? "on" : "off"} ${cmd.lightSelector === "all" ? "all lights" : "light"}`;
+      case "color":
+        return `Set color`;
+      case "brightness":
+        return cmd.action === "adjust" ? "Adjust brightness" : "Set brightness";
+      case "temperature":
+        return "Set temperature";
+      case "profile":
+        return `Apply profile: ${cmd.profileName}`;
+      case "compound":
+        return "Execute compound command";
+      default:
+        return "Execute command";
+    }
+  };
+
   return (
     <List.Item
       title={light.label}
@@ -419,6 +471,16 @@ export function LightListItem({ light, client, onUpdate }: Props) {
       accessories={accessories}
       actions={
         <ActionPanel>
+          {nlpCommand && onExecuteNlp && (
+            <ActionPanel.Section title="Natural Language">
+              <Action
+                title={`Execute: ${getNlpDescription(nlpCommand)}`}
+                icon={Icon.Wand}
+                onAction={onExecuteNlp}
+                shortcut={{ key: "return" }}
+              />
+            </ActionPanel.Section>
+          )}
           <ActionPanel.Section title="Quick Actions">
             <Action
               title={light.power ? "Turn Off" : "Turn On"}
@@ -429,7 +491,7 @@ export function LightListItem({ light, client, onUpdate }: Props) {
             <Action.Push
               title="View Details"
               icon={Icon.Eye}
-              target={<LightDetailView light={light} client={client} onUpdate={onUpdate} />}
+              target={<LightDetailView light={light} client={client} onUpdate={onUpdate} nlpCommand={nlpCommand} onExecuteNlp={onExecuteNlp} />}
               shortcut={{ modifiers: ["cmd"], key: "i" }}
             />
           </ActionPanel.Section>

@@ -329,18 +329,19 @@ export default function Command() {
 
   function handleSearchTextChange(text: string) {
     setSearchText(text);
+  }
 
-    // Only process if the text ends with a trigger (Enter will be simulated by the user pressing enter)
-    // We'll use a debounce-like approach: only process when user stops typing for a moment
-    // For now, we'll process on every change but with a check for duplicates
-    if (text.trim().length > 2 && text.trim() !== lastProcessedCommand) {
-      const parsed = nlpParser.parse(text.trim(), profiles);
+  // Parse the current search text to see if it's a valid NLP command
+  function getParsedCommand(): ParsedCommand | null {
+    if (searchText.trim().length < 3) return null;
+    const parsed = nlpParser.parse(searchText.trim(), profiles);
+    return parsed.confidence >= 0.7 ? parsed : null;
+  }
 
-      // Only auto-execute high-confidence commands
-      if (parsed.confidence >= 0.8) {
-        setLastProcessedCommand(text.trim());
-        executeNaturalLanguageCommand(parsed);
-      }
+  async function executeSearchCommand() {
+    const parsed = getParsedCommand();
+    if (parsed) {
+      await executeNaturalLanguageCommand(parsed);
     }
   }
 
@@ -391,8 +392,19 @@ export default function Command() {
     </ActionPanel.Section>
   );
 
+  // Get NLP command action if available
+  const nlpCommandAction = getParsedCommand() ? (
+    <Action
+      title={`Execute: ${nlpParser.describeCommand(getParsedCommand()!)}`}
+      icon={Icon.Wand}
+      onAction={executeSearchCommand}
+      shortcut={{ key: "return" }}
+    />
+  ) : null;
+
   const allLightsActions = (
     <>
+      {nlpCommandAction && <ActionPanel.Section title="Natural Language">{nlpCommandAction}</ActionPanel.Section>}
       <ActionPanel.Section title="All Lights">
         <Action
           title="Turn All On"
@@ -495,7 +507,7 @@ export default function Command() {
                         title="Apply Profile"
                         icon={Icon.Checkmark}
                         onAction={() => applyProfile(profile)}
-                        shortcut={{ modifiers: ["cmd"], key: "enter" }}
+                        shortcut={{ modifiers: ["ctrl"], key: "return" }}
                       />
                       <Action
                         title="Delete Profile"
@@ -575,7 +587,14 @@ export default function Command() {
             )}
             <Grid.Section title="Your Lights" subtitle={`${lights.length} light${lights.length !== 1 ? "s" : ""}`}>
               {lights.map((light: LIFXLight) => (
-                <LightGridItem key={light.id} light={light} client={client} onUpdate={refreshLights} />
+                <LightGridItem
+                  key={light.id}
+                  light={light}
+                  client={client}
+                  onUpdate={refreshLights}
+                  nlpCommand={getParsedCommand()}
+                  onExecuteNlp={executeSearchCommand}
+                />
               ))}
             </Grid.Section>
           </>
@@ -662,7 +681,14 @@ export default function Command() {
           )}
           <List.Section title="Individual Lights" subtitle={`${lights.length} light${lights.length !== 1 ? "s" : ""}`}>
             {lights.map((light: LIFXLight) => (
-              <LightListItem key={light.id} light={light} client={client} onUpdate={refreshLights} />
+              <LightListItem
+                key={light.id}
+                light={light}
+                client={client}
+                onUpdate={refreshLights}
+                nlpCommand={getParsedCommand()}
+                onExecuteNlp={executeSearchCommand}
+              />
             ))}
           </List.Section>
         </>
