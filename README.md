@@ -7,10 +7,11 @@ Control your LIFX smart lights directly from Raycast with local network discover
 ## Features
 
 ### 🤖 Natural Language Control
-- **Type Commands Naturally**: Control your lights by typing commands like "set to red and dim a bit"
-- **Smart Parsing**: Understands colors, brightness levels, temperatures, and profiles
-- **Compound Commands**: Chain multiple actions together (e.g., "turn on, set to blue, and brighten")
-- **Profile Integration**: Load saved profiles by name (e.g., "switch to my night time profile")
+- **Type Commands Naturally**: Control your lights by typing commands like "set to electric blue and make it cozy"
+- **Incredibly Smart Parsing**: Recognizes 80+ colors, 50+ brightness levels, 30+ temperature keywords
+- **Compound Commands**: Chain multiple actions together (e.g., "turn on, set to pastel pink, and dim a bit")
+- **Conversational**: Say it however feels natural - "gimme some light", "make it super bright", "barely on night light"
+- **Profile Integration**: Load saved profiles by name or tag (e.g., "switch to my sleep mode")
 - **Keyboard Shortcut**: Press `Ctrl+Enter` to execute your command
 
 ### 🚀 Smart Connection
@@ -126,13 +127,38 @@ The easiest way to control your lights is with natural language:
 4. Press `Ctrl+Enter` to execute
 
 **Example Commands:**
-- `turn on` - Turn on the first light
-- `set to red` - Change color to red
-- `dim a bit` - Decrease brightness by 15%
-- `set to warm white` - Set to 2700K temperature
-- `turn on and set to blue` - Compound command
-- `set to my sleep mode` - Load a saved profile
-- `all lights to 50%` - Control all lights at once
+
+*Power & Basic*
+- `turn on` / `lights on` / `gimme light` - Turn on lights
+- `lights off` / `darkness` / `make it dark` - Turn off lights
+
+*Colors (80+ recognized!)*
+- `set to red` / `electric blue` / `neon pink` - Basic colors
+- `deep blue` / `pale green` / `pastel pink` - Color variations
+- `sapphire` / `emerald` / `crimson` / `amber` - Named colors
+- `baby blue` / `hot pink` / `forest green` - Descriptive colors
+
+*Brightness (50+ keywords!)*
+- `super bright` / `max brightness` / `brightest` - Maximum
+- `dim a bit` / `pretty dim` / `quite dim` - Decrease
+- `night light` / `barely on` / `barely lit` - Very low
+- `75%` / `half` / `medium` - Specific levels
+
+*Temperature (30+ moods!)*
+- `warm white` / `cozy` / `relaxing` / `sunset` - Warm
+- `cool white` / `energizing` / `focus` - Cool
+- `daylight` / `morning` / `sunshine` - Bright
+- `candlelight` / `warm glow` - Atmospheric
+
+*Compound Commands*
+- `turn on and set to blue` - Multiple actions
+- `electric blue and super bright` - Color + brightness
+- `cozy and dim a bit` - Temperature + brightness
+- `all lights to pastel pink and half brightness` - Complex
+
+*Profiles*
+- `load my sleep mode` / `switch to sleep mode` - By name
+- `gimme my work preset` / `use the relax scene` - Casual
 
 ### Control Individual Lights
 1. Open Raycast
