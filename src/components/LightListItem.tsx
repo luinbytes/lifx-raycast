@@ -11,7 +11,6 @@ interface Props {
   light: LIFXLight;
   client: LIFXClientManager;
   onUpdate: () => void;
-  onExecuteNlp?: () => Promise<void>;
 }
 
 const COLOR_SCENES = [
@@ -144,7 +143,7 @@ function LoadProfileList({ light, client, onLoad }: { light: LIFXLight; client: 
   );
 }
 
-function LightDetailView({ light, client, onUpdate, onExecuteNlp }: Props) {
+function LightDetailView({ light, client, onUpdate }: Props) {
   async function togglePower() {
     try {
       await client.controlLight(light.id, { power: !light.power });
@@ -244,16 +243,6 @@ ${light.saturation > 0 ? `**Color Mode:** ${light.hue}° hue at ${light.saturati
       }
       actions={
         <ActionPanel>
-          {onExecuteNlp && (
-            <ActionPanel.Section title="Natural Language">
-              <Action
-                title="Execute Natural Language Command"
-                icon={Icon.Wand}
-                onAction={onExecuteNlp}
-                shortcut={{ key: "return" }}
-              />
-            </ActionPanel.Section>
-          )}
           <ActionPanel.Section title="Power">
             <Action
               title={light.power ? "Turn Off" : "Turn On"}
@@ -311,7 +300,7 @@ ${light.saturation > 0 ? `**Color Mode:** ${light.hue}° hue at ${light.saturati
   );
 }
 
-export function LightListItem({ light, client, onUpdate, onExecuteNlp }: Props) {
+export function LightListItem({ light, client, onUpdate }: Props) {
   // Determine icon color based on light state
   const getTintColor = () => {
     if (!light.power) return Color.SecondaryText;
@@ -428,16 +417,6 @@ export function LightListItem({ light, client, onUpdate, onExecuteNlp }: Props) 
       accessories={accessories}
       actions={
         <ActionPanel>
-          {onExecuteNlp && (
-            <ActionPanel.Section title="Natural Language">
-              <Action
-                title="Execute Natural Language Command"
-                icon={Icon.Wand}
-                onAction={onExecuteNlp}
-                shortcut={{ key: "return" }}
-              />
-            </ActionPanel.Section>
-          )}
           <ActionPanel.Section title="Quick Actions">
             <Action
               title={light.power ? "Turn Off" : "Turn On"}
@@ -448,7 +427,7 @@ export function LightListItem({ light, client, onUpdate, onExecuteNlp }: Props) 
             <Action.Push
               title="View Details"
               icon={Icon.Eye}
-              target={<LightDetailView light={light} client={client} onUpdate={onUpdate} onExecuteNlp={onExecuteNlp} />}
+              target={<LightDetailView light={light} client={client} onUpdate={onUpdate} />}
               shortcut={{ modifiers: ["cmd"], key: "i" }}
             />
           </ActionPanel.Section>

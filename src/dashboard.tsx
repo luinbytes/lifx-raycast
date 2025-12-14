@@ -555,6 +555,26 @@ export default function Command() {
           />
         ) : (
           <>
+            {searchText.trim().length >= 3 && (
+              <Grid.Section title="Natural Language Command">
+                <Grid.Item
+                  title="Execute Command"
+                  subtitle={searchText.trim()}
+                  content={{ source: Icon.Wand, tintColor: Color.Purple }}
+                  actions={
+                    <ActionPanel>
+                      <Action
+                        title="Execute Natural Language Command"
+                        icon={Icon.Wand}
+                        onAction={executeSearchCommand}
+                      />
+                      {navigationActions}
+                      {commonActions}
+                    </ActionPanel>
+                  }
+                />
+              </Grid.Section>
+            )}
             {lights.length > 1 && (
               <Grid.Section title="Quick Actions">
                 <Grid.Item
@@ -575,7 +595,6 @@ export default function Command() {
                   light={light}
                   client={client}
                   onUpdate={refreshLights}
-                  onExecuteNlp={executeSearchCommand}
                 />
               ))}
             </Grid.Section>
@@ -610,6 +629,27 @@ export default function Command() {
         />
       ) : (
         <>
+          {searchText.trim().length >= 3 && (
+            <List.Section title="Natural Language Command">
+              <List.Item
+                title="Execute Command"
+                subtitle={searchText.trim()}
+                icon={{ source: Icon.Wand, tintColor: Color.Purple }}
+                accessories={[{ text: "Press Enter to execute", icon: Icon.ArrowRight }]}
+                actions={
+                  <ActionPanel>
+                    <Action
+                      title="Execute Natural Language Command"
+                      icon={Icon.Wand}
+                      onAction={executeSearchCommand}
+                    />
+                    {navigationActions}
+                    {commonActions}
+                  </ActionPanel>
+                }
+              />
+            </List.Section>
+          )}
           {lights.length > 1 && (
             <List.Section title="All Lights">
               <List.Item
@@ -668,7 +708,6 @@ export default function Command() {
                 light={light}
                 client={client}
                 onUpdate={refreshLights}
-                onExecuteNlp={executeSearchCommand}
               />
             ))}
           </List.Section>

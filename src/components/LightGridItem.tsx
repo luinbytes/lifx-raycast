@@ -9,7 +9,6 @@ interface Props {
   light: LIFXLight;
   client: LIFXClientManager;
   onUpdate: () => void;
-  onExecuteNlp?: () => Promise<void>;
 }
 
 const COLOR_SCENES = [
@@ -24,7 +23,7 @@ const COLOR_SCENES = [
   { hue: 240, saturation: 50, brightness: 30, kelvin: 3500, name: "Night", icon: "🌙" },
 ];
 
-function LightDetailView({ light, client, onUpdate, onExecuteNlp }: Props) {
+function LightDetailView({ light, client, onUpdate }: Props) {
   const getColorFromHSB = (hue: number, saturation: number, brightness: number) => {
     // Convert HSB to RGB for display
     const h = hue / 360;
@@ -148,16 +147,6 @@ ${light.saturation > 0 ? `**Color:** ${getColorFromHSB(light.hue, light.saturati
       }
       actions={
         <ActionPanel>
-          {onExecuteNlp && (
-            <ActionPanel.Section title="Natural Language">
-              <Action
-                title="Execute Natural Language Command"
-                icon={Icon.Wand}
-                onAction={onExecuteNlp}
-                shortcut={{ key: "return" }}
-              />
-            </ActionPanel.Section>
-          )}
           <ActionPanel.Section title="Power">
             <Action
               title={light.power ? "Turn Off" : "Turn On"}
@@ -202,7 +191,7 @@ ${light.saturation > 0 ? `**Color:** ${getColorFromHSB(light.hue, light.saturati
   );
 }
 
-export function LightGridItem({ light, client, onUpdate, onExecuteNlp }: Props) {
+export function LightGridItem({ light, client, onUpdate }: Props) {
   // Determine icon color based on light state
   const getTintColor = () => {
     if (!light.power) return Color.SecondaryText;
@@ -304,16 +293,6 @@ export function LightGridItem({ light, client, onUpdate, onExecuteNlp }: Props) 
       ]}
       actions={
         <ActionPanel>
-          {onExecuteNlp && (
-            <ActionPanel.Section title="Natural Language">
-              <Action
-                title="Execute Natural Language Command"
-                icon={Icon.Wand}
-                onAction={onExecuteNlp}
-                shortcut={{ key: "return" }}
-              />
-            </ActionPanel.Section>
-          )}
           <ActionPanel.Section title="Quick Actions">
             <Action
               title={light.power ? "Turn Off" : "Turn On"}
@@ -323,7 +302,7 @@ export function LightGridItem({ light, client, onUpdate, onExecuteNlp }: Props) 
             <Action.Push
               title="View Details"
               icon={Icon.Eye}
-              target={<LightDetailView light={light} client={client} onUpdate={onUpdate} onExecuteNlp={onExecuteNlp} />}
+              target={<LightDetailView light={light} client={client} onUpdate={onUpdate} />}
               shortcut={{ modifiers: ["cmd"], key: "i" }}
             />
           </ActionPanel.Section>
