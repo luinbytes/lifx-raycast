@@ -567,6 +567,7 @@ export default function Command() {
                         title="Execute Natural Language Command"
                         icon={Icon.Wand}
                         onAction={executeSearchCommand}
+                        shortcut={{ modifiers: ["ctrl"], key: "return" }}
                       />
                       {navigationActions}
                       {commonActions}
@@ -635,13 +636,14 @@ export default function Command() {
                 title="Execute Command"
                 subtitle={searchText.trim()}
                 icon={{ source: Icon.Wand, tintColor: Color.Purple }}
-                accessories={[{ text: "Press Enter to execute", icon: Icon.ArrowRight }]}
+                accessories={[{ text: "Press Ctrl+Enter to execute", icon: Icon.ArrowRight }]}
                 actions={
                   <ActionPanel>
                     <Action
                       title="Execute Natural Language Command"
                       icon={Icon.Wand}
                       onAction={executeSearchCommand}
+                      shortcut={{ modifiers: ["ctrl"], key: "return" }}
                     />
                     {navigationActions}
                     {commonActions}
