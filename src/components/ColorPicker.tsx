@@ -1,5 +1,4 @@
-import { Form, ActionPanel, Action, showToast, Toast, popToRoot } from "@raycast/api";
-import { useState } from "react";
+import { Grid, ActionPanel, Action, showToast, Toast, Color, popToRoot } from "@raycast/api";
 import { LIFXLight } from "../lib/types";
 import { LIFXClientManager } from "../lib/lifx-client";
 
@@ -9,34 +8,45 @@ interface Props {
   onComplete: () => void;
 }
 
-const COLOR_PRESETS = [
+// Create a comprehensive color palette
+const COLORS = [
+  // Vivid colors (100% saturation)
   { hue: 0, saturation: 100, label: "Red", icon: "🔴" },
+  { hue: 15, saturation: 100, label: "Red-Orange", icon: "🟠" },
   { hue: 30, saturation: 100, label: "Orange", icon: "🟠" },
+  { hue: 45, saturation: 100, label: "Orange-Yellow", icon: "🟡" },
   { hue: 60, saturation: 100, label: "Yellow", icon: "🟡" },
+  { hue: 90, saturation: 100, label: "Yellow-Green", icon: "💚" },
   { hue: 120, saturation: 100, label: "Green", icon: "🟢" },
+  { hue: 150, saturation: 100, label: "Spring Green", icon: "🩵" },
   { hue: 180, saturation: 100, label: "Cyan", icon: "🩵" },
+  { hue: 210, saturation: 100, label: "Sky Blue", icon: "🔵" },
   { hue: 240, saturation: 100, label: "Blue", icon: "🔵" },
-  { hue: 280, saturation: 100, label: "Purple", icon: "🟣" },
+  { hue: 270, saturation: 100, label: "Purple", icon: "🟣" },
   { hue: 300, saturation: 100, label: "Magenta", icon: "🩷" },
-  { hue: 0, saturation: 50, label: "Pink", icon: "💗" },
+  { hue: 330, saturation: 100, label: "Pink-Red", icon: "💗" },
+  // Pastel colors (50% saturation)
+  { hue: 0, saturation: 50, label: "Light Pink", icon: "💗" },
+  { hue: 30, saturation: 50, label: "Peach", icon: "🍑" },
+  { hue: 60, saturation: 50, label: "Light Yellow", icon: "💛" },
+  { hue: 120, saturation: 50, label: "Mint", icon: "🌿" },
+  { hue: 180, saturation: 50, label: "Light Cyan", icon: "💙" },
+  { hue: 240, saturation: 50, label: "Light Blue", icon: "💙" },
+  { hue: 270, saturation: 50, label: "Lavender", icon: "💜" },
+  { hue: 300, saturation: 50, label: "Light Magenta", icon: "💗" },
 ];
 
 export function ColorPicker({ light, client, onComplete }: Props) {
-  const [selectedColor, setSelectedColor] = useState("0");
-
-  async function handleSubmit() {
-    const preset = COLOR_PRESETS[parseInt(selectedColor)];
-
+  async function setColor(hue: number, saturation: number, label: string) {
     try {
-      // Only set hue and saturation - brightness will be preserved automatically
       await client.controlLight(light.id, {
-        hue: preset.hue,
-        saturation: preset.saturation,
+        hue,
+        saturation,
       });
-      showToast({ style: Toast.Style.Success, title: `Set ${light.label} to ${preset.label}` });
-      // Wait for bulb to broadcast new state before refreshing UI
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      showToast({ style: Toast.Style.Success, title: `Set ${light.label} to ${label}` });
+      await new Promise((resolve) => setTimeout(resolve, 1500));
       onComplete();
+      popToRoot();
     } catch (error) {
       showToast({
         style: Toast.Style.Failure,
@@ -46,24 +56,44 @@ export function ColorPicker({ light, client, onComplete }: Props) {
     }
   }
 
+  const isCurrent = (hue: number, saturation: number) => {
+    return Math.abs(light.hue - hue) < 15 && Math.abs(light.saturation - saturation) < 10;
+  };
+
   return (
-    <Form
-      actions={
-        <ActionPanel>
-          <Action.SubmitForm title="Set Color" onSubmit={handleSubmit} />
-        </ActionPanel>
-      }
-    >
-      <Form.Dropdown id="color" title="Color" value={selectedColor} onChange={setSelectedColor}>
-        {COLOR_PRESETS.map((preset, index) => (
-          <Form.Dropdown.Item
-            key={index}
-            value={index.toString()}
-            title={`${preset.icon} ${preset.label}`}
+    <Grid columns={4} aspectRatio="1" fit={Grid.Fit.Fill} searchBarPlaceholder="Search colors...">
+      <Grid.Section title="Vivid Colors">
+        {COLORS.filter((c) => c.saturation === 100).map((color) => (
+          <Grid.Item
+            key={`${color.hue}-${color.saturation}`}
+            content={{ value: color.icon, tooltip: color.label }}
+            title={color.label}
+            subtitle={`${color.hue}° • ${color.saturation}%`}
+            accessories={[isCurrent(color.hue, color.saturation) ? { tag: { value: "Current", color: Color.Green } } : {}]}
+            actions={
+              <ActionPanel>
+                <Action title={`Set to ${color.label}`} onAction={() => setColor(color.hue, color.saturation, color.label)} />
+              </ActionPanel>
+            }
           />
         ))}
-      </Form.Dropdown>
-      <Form.Description text={`Current: ${light.hue}° hue, ${light.saturation}% saturation at ${light.brightness}% brightness`} />
-    </Form>
+      </Grid.Section>
+      <Grid.Section title="Pastel Colors">
+        {COLORS.filter((c) => c.saturation === 50).map((color) => (
+          <Grid.Item
+            key={`${color.hue}-${color.saturation}`}
+            content={{ value: color.icon, tooltip: color.label }}
+            title={color.label}
+            subtitle={`${color.hue}° • ${color.saturation}%`}
+            accessories={[isCurrent(color.hue, color.saturation) ? { tag: { value: "Current", color: Color.Green } } : {}]}
+            actions={
+              <ActionPanel>
+                <Action title={`Set to ${color.label}`} onAction={() => setColor(color.hue, color.saturation, color.label)} />
+              </ActionPanel>
+            }
+          />
+        ))}
+      </Grid.Section>
+    </Grid>
   );
 }

@@ -319,6 +319,10 @@ export function LightListItem({ light, client, onUpdate, onExecuteNlp }: Props) 
     return Color.Orange;
   };
 
+  // Determine locale-appropriate spelling (British English uses "colour", American uses "color")
+  const isUK = Intl.DateTimeFormat().resolvedOptions().locale.startsWith("en-GB");
+  const colorText = isUK ? "Colour" : "Color";
+
   const accessories = [
     {
       text: light.power ? "On" : "Off",
@@ -329,7 +333,7 @@ export function LightListItem({ light, client, onUpdate, onExecuteNlp }: Props) 
       icon: Icon.Sun,
     },
     {
-      tag: { value: light.saturation > 0 ? "Color" : "White", color: light.saturation > 0 ? Color.Magenta : Color.Orange },
+      tag: { value: light.saturation > 0 ? colorText : "White", color: getTintColor() },
     },
     { text: light.source.toUpperCase(), tooltip: `Connected via ${light.source}` },
   ];

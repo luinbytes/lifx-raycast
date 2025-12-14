@@ -585,7 +585,7 @@ export default function Command() {
         columns={4}
         aspectRatio="1"
         fit={Grid.Fit.Fill}
-        searchBarPlaceholder="Search lights or type a command (e.g., 'turn on', 'set to red', 'dim a bit'), then press Ctrl+Enter..."
+        searchBarPlaceholder="Search or command (e.g., 'turn on', 'set red', 'dim'), then Ctrl+Enter..."
         searchText={searchText}
         onSearchTextChange={handleSearchTextChange}
         actions={
@@ -640,7 +640,7 @@ export default function Command() {
   return (
     <List
       isLoading={isLoading}
-      searchBarPlaceholder="Search lights or type a command (e.g., 'turn on', 'set to red', 'dim a bit'), then press Ctrl+Enter..."
+      searchBarPlaceholder="Search or command (e.g., 'turn on', 'set red', 'dim'), then Ctrl+Enter..."
       searchText={searchText}
       onSearchTextChange={handleSearchTextChange}
       actions={
