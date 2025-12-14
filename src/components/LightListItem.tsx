@@ -11,6 +11,7 @@ interface Props {
   light: LIFXLight;
   client: LIFXClientManager;
   onUpdate: () => void;
+  onExecuteNlp?: () => Promise<void>;
 }
 
 const COLOR_SCENES = [
@@ -300,7 +301,7 @@ ${light.saturation > 0 ? `**Color Mode:** ${light.hue}° hue at ${light.saturati
   );
 }
 
-export function LightListItem({ light, client, onUpdate }: Props) {
+export function LightListItem({ light, client, onUpdate, onExecuteNlp }: Props) {
   // Determine icon color based on light state
   const getTintColor = () => {
     if (!light.power) return Color.SecondaryText;
@@ -417,6 +418,16 @@ export function LightListItem({ light, client, onUpdate }: Props) {
       accessories={accessories}
       actions={
         <ActionPanel>
+          {onExecuteNlp && (
+            <ActionPanel.Section title="Natural Language">
+              <Action
+                title="Execute Natural Language Command"
+                icon={Icon.Wand}
+                onAction={onExecuteNlp}
+                shortcut={{ modifiers: ["ctrl"], key: "return" }}
+              />
+            </ActionPanel.Section>
+          )}
           <ActionPanel.Section title="Quick Actions">
             <Action
               title={light.power ? "Turn Off" : "Turn On"}

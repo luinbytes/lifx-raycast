@@ -534,7 +534,7 @@ export default function Command() {
         columns={4}
         aspectRatio="1"
         fit={Grid.Fit.Fill}
-        searchBarPlaceholder="Search lights or type a command (e.g., 'turn on', 'set to red', 'dim a bit')..."
+        searchBarPlaceholder="Search lights or type a command (e.g., 'turn on', 'set to red', 'dim a bit'), then press Ctrl+Enter..."
         searchText={searchText}
         onSearchTextChange={handleSearchTextChange}
         actions={
@@ -555,27 +555,6 @@ export default function Command() {
           />
         ) : (
           <>
-            {searchText.trim().length >= 3 && (
-              <Grid.Section title="Natural Language Command">
-                <Grid.Item
-                  title="Execute Command"
-                  subtitle={searchText.trim()}
-                  content={{ source: Icon.Wand, tintColor: Color.Purple }}
-                  actions={
-                    <ActionPanel>
-                      <Action
-                        title="Execute Natural Language Command"
-                        icon={Icon.Wand}
-                        onAction={executeSearchCommand}
-                        shortcut={{ modifiers: ["ctrl"], key: "return" }}
-                      />
-                      {navigationActions}
-                      {commonActions}
-                    </ActionPanel>
-                  }
-                />
-              </Grid.Section>
-            )}
             {lights.length > 1 && (
               <Grid.Section title="Quick Actions">
                 <Grid.Item
@@ -596,6 +575,7 @@ export default function Command() {
                   light={light}
                   client={client}
                   onUpdate={refreshLights}
+                  onExecuteNlp={searchText.trim().length >= 3 ? executeSearchCommand : undefined}
                 />
               ))}
             </Grid.Section>
@@ -609,7 +589,7 @@ export default function Command() {
   return (
     <List
       isLoading={isLoading}
-      searchBarPlaceholder="Search lights or type a command (e.g., 'turn on', 'set to red', 'dim a bit')..."
+      searchBarPlaceholder="Search lights or type a command (e.g., 'turn on', 'set to red', 'dim a bit'), then press Ctrl+Enter..."
       searchText={searchText}
       onSearchTextChange={handleSearchTextChange}
       actions={
@@ -630,28 +610,6 @@ export default function Command() {
         />
       ) : (
         <>
-          {searchText.trim().length >= 3 && (
-            <List.Section title="Natural Language Command">
-              <List.Item
-                title="Execute Command"
-                subtitle={searchText.trim()}
-                icon={{ source: Icon.Wand, tintColor: Color.Purple }}
-                accessories={[{ text: "Press Ctrl+Enter to execute", icon: Icon.ArrowRight }]}
-                actions={
-                  <ActionPanel>
-                    <Action
-                      title="Execute Natural Language Command"
-                      icon={Icon.Wand}
-                      onAction={executeSearchCommand}
-                      shortcut={{ modifiers: ["ctrl"], key: "return" }}
-                    />
-                    {navigationActions}
-                    {commonActions}
-                  </ActionPanel>
-                }
-              />
-            </List.Section>
-          )}
           {lights.length > 1 && (
             <List.Section title="All Lights">
               <List.Item
@@ -710,6 +668,7 @@ export default function Command() {
                 light={light}
                 client={client}
                 onUpdate={refreshLights}
+                onExecuteNlp={searchText.trim().length >= 3 ? executeSearchCommand : undefined}
               />
             ))}
           </List.Section>

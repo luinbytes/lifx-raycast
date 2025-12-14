@@ -9,6 +9,7 @@ interface Props {
   light: LIFXLight;
   client: LIFXClientManager;
   onUpdate: () => void;
+  onExecuteNlp?: () => Promise<void>;
 }
 
 const COLOR_SCENES = [
@@ -191,7 +192,7 @@ ${light.saturation > 0 ? `**Color:** ${getColorFromHSB(light.hue, light.saturati
   );
 }
 
-export function LightGridItem({ light, client, onUpdate }: Props) {
+export function LightGridItem({ light, client, onUpdate, onExecuteNlp }: Props) {
   // Determine icon color based on light state
   const getTintColor = () => {
     if (!light.power) return Color.SecondaryText;
@@ -293,6 +294,16 @@ export function LightGridItem({ light, client, onUpdate }: Props) {
       ]}
       actions={
         <ActionPanel>
+          {onExecuteNlp && (
+            <ActionPanel.Section title="Natural Language">
+              <Action
+                title="Execute Natural Language Command"
+                icon={Icon.Wand}
+                onAction={onExecuteNlp}
+                shortcut={{ modifiers: ["ctrl"], key: "return" }}
+              />
+            </ActionPanel.Section>
+          )}
           <ActionPanel.Section title="Quick Actions">
             <Action
               title={light.power ? "Turn Off" : "Turn On"}
