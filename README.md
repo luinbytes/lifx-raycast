@@ -63,6 +63,46 @@ All actions have keyboard shortcuts for maximum efficiency:
 
 #### Other
 - `Cmd+R` - Refresh lights list
+- `Cmd+Shift+T` - Open troubleshooting guide
+
+## Connection Status & Troubleshooting
+
+### Connection Status
+The extension shows real-time connection status with visual indicators:
+
+- **LAN Connected** (🟢 Green) - Using local network discovery (fast, no internet required)
+- **HTTP API Connected** (🟠 Orange) - Using cloud API (fallback, remote access)
+- **Discovering** (🔵 Blue) - Currently searching for lights
+- **Connection Error** (🔴 Red) - Unable to connect
+
+Status indicators show:
+- ✓ LAN Discovery status
+- ✓ HTTP API status
+- Current connection method (LAN/HTTP)
+- Error messages (if any)
+
+### Troubleshooting Guide
+Access step-by-step troubleshooting help:
+- Press `Cmd+Shift+T` or click "Troubleshoot Connection"
+- View specific steps based on your error type
+- Get suggestions for common issues
+- Access LIFX support documentation
+- Check network settings
+- Restart the extension
+
+### Error Types & Solutions
+
+| Error | Description | Solutions |
+|-------|-------------|-----------|
+| **No Lights Found** | No LIFX lights discovered | Check lights are powered on, same network, restart lights |
+| **Connection Timeout** | Network timeout during discovery | Check network, disable VPN, check power-saving mode |
+| **Connection Refused** | Network connection refused | Check firewall, disable VPN, restart router |
+| **Network Error** | General network issue | Check internet connection, network settings |
+
+### Automatic Retry & Fallback
+- **Exponential backoff**: Retries failed connections with delays (1s → 2s → 4s → 8s → 16s)
+- **Automatic fallback**: Switches to HTTP API if LAN fails
+- **Smart error messages**: Clear guidance for each error type
 
 ## Installation
 
@@ -184,20 +224,61 @@ When you have multiple lights, an "All Lights" section appears at the top:
 
 ## Troubleshooting
 
-### No Lights Discovered
+### Connection Status Indicators
+The extension provides visual indicators for connection status:
+
+- **🟢 LAN Connected** (Green WiFi icon) - Lights discovered via local network (fastest)
+- **🟠 HTTP API Connected** (Orange Globe icon) - Connected via cloud API (fallback)
+- **🔵 Discovering...** (Blue Spinner) - Currently searching for lights
+- **🔴 Connection Error** (Red Exclamation) - No connection available
+
+The connection status is displayed at the top of the lights list, showing:
+- LAN Discovery status (✓ / ✗)
+- HTTP API status (✓ / ✗)
+- Current connection method
+- Any error messages
+
+### Built-in Troubleshooting Guide
+If you experience connection issues, use the **Troubleshoot Connection** action (`Cmd+Shift+T`) to:
+- View step-by-step troubleshooting instructions
+- Get specific guidance for your error type
+- Access LIFX support documentation
+- Check network settings
+- Restart the extension
+
+### Common Issues
+
+#### No Lights Discovered
 - Ensure your LIFX lights are powered on
 - Check that your computer is on the same network as your lights
 - Try increasing the LAN Discovery Timeout in preferences
 - Add an HTTP API token as fallback
+- Restart your LIFX lights by unplugging and replugging them
 
-### Lights Not Responding
+#### Connection Timeout
+- Check if your lights are powered on
+- Verify your network connection is stable
+- Try disabling any VPN or firewall temporarily
+- Check if lights are in a power-saving mode
+
+#### Connection Refused
+- Check your network connection
+- Disable VPN temporarily
+- Check firewall settings
+- Restart your router if needed
+
+#### Lights Not Responding
 - Check if lights are reachable on your network
 - Try refreshing the lights list (`Cmd+R`)
 - The extension will automatically try HTTP API if LAN fails
+- Check the connection status at the top of the list
 
-### UI Not Updating
-- This has been fixed in the latest version
-- Make sure you're running the latest build
+### Error Handling
+The extension includes intelligent error handling:
+- **Exponential backoff retry**: Automatically retries failed connections with increasing delays (1s, 2s, 4s, 8s, 16s)
+- **Automatic fallback**: Falls back to HTTP API if LAN discovery fails
+- **Specific error messages**: Clear messages for different error types (no lights, timeout, connection refused, network error)
+- **Troubleshooting suggestions**: Helpful tips embedded in error messages
 
 ## Development
 

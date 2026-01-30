@@ -11,10 +11,15 @@ export class LIFXClientManager {
     httpAvailable: false,
     activeLights: [],
     lastDiscovery: null,
+    discoveryStatus: "idle",
+    connectionType: "none",
+    lastError: undefined,
+    errorType: undefined,
   };
 
   async initialize(): Promise<void> {
     const preferences = getPreferenceValues<Preferences>();
+    this.connectionState.discoveryStatus = "running";
 
     // Try LAN discovery first (if enabled in preferences)
     if (preferences.enableLanDiscovery) {
@@ -31,31 +36,63 @@ export class LIFXClientManager {
         });
         await this.lanClient.initialize(timeout);
         this.connectionState.lanAvailable = true;
+        this.connectionState.connectionType = "lan";
+        this.connectionState.discoveryStatus = "success";
+        this.connectionState.lastError = undefined;
+        this.connectionState.errorType = undefined;
       } catch (error) {
+        const err = error as Error;
+        const errorType = (err as any).type || "unknown";
         console.warn("LAN discovery failed:", error);
+
         this.connectionState.lanAvailable = false;
+        this.connectionState.discoveryStatus = "error";
+        this.connectionState.lastError = err.message;
+        this.connectionState.errorType = errorType;
+
+        // Provide user-friendly error messages
+        if (errorType === "no-lights") {
+          this.connectionState.lastError = "No LIFX lights found on your network";
+        } else if (errorType === "timeout") {
+          this.connectionState.lastError = "Network timeout - check if lights are powered on";
+        } else if (errorType === "connection-refused") {
+          this.connectionState.lastError = "Connection refused - check your network connection";
+        } else if (errorType === "network-error") {
+          this.connectionState.lastError = "Network error - check your internet connection";
+        }
       }
     }
 
-    // Initialize HTTP client (requires API token)
+    // Initialize HTTP client (requires API token) - fallback if LAN fails
     if (preferences.httpApiToken) {
       try {
         this.httpClient = new LIFXHttpClient();
         await this.httpClient.initialize(preferences.httpApiToken);
         this.connectionState.httpAvailable = true;
+
+        // If LAN failed, use HTTP as primary
+        if (!this.connectionState.lanAvailable) {
+          this.connectionState.connectionType = "http";
+          this.connectionState.discoveryStatus = "success";
+        }
       } catch (error) {
         console.warn("HTTP API initialization failed:", error);
         this.connectionState.httpAvailable = false;
+        const err = error as Error;
+        this.connectionState.lastError = `HTTP API failed: ${err.message}`;
       }
     }
 
     if (!this.connectionState.lanAvailable && !this.connectionState.httpAvailable) {
+      this.connectionState.discoveryStatus = "error";
+      this.connectionState.connectionType = "none";
       throw new Error("No connection method available. Enable LAN discovery or provide HTTP API token.");
     }
   }
 
   async discoverLights(): Promise<LIFXLight[]> {
     console.log(`[Client Manager] Starting light discovery...`);
+    this.connectionState.discoveryStatus = "running";
     const lights: Map<string, LIFXLight> = new Map();
 
     // Prefer LAN lights (faster, local)
@@ -66,6 +103,10 @@ export class LIFXClientManager {
         console.log(`[Client Manager] Found ${lanLights.length} LAN lights`);
       } catch (error) {
         console.warn("Failed to get LAN lights:", error);
+        // Try HTTP as fallback if LAN fails during discovery
+        if (this.httpClient && this.connectionState.httpAvailable) {
+          this.connectionState.connectionType = "http";
+        }
       }
     }
 
@@ -86,6 +127,17 @@ export class LIFXClientManager {
 
     this.connectionState.activeLights = Array.from(lights.values());
     this.connectionState.lastDiscovery = new Date();
+
+    // Update discovery status
+    if (this.connectionState.activeLights.length === 0) {
+      this.connectionState.discoveryStatus = "error";
+      this.connectionState.lastError = "No lights discovered";
+      this.connectionState.errorType = "no-lights";
+    } else {
+      this.connectionState.discoveryStatus = "success";
+      this.connectionState.lastError = undefined;
+    }
+
     console.log(`[Client Manager] Total lights discovered: ${this.connectionState.activeLights.length}`);
     return this.connectionState.activeLights;
   }
@@ -131,6 +183,50 @@ export class LIFXClientManager {
 
   getConnectionState(): ConnectionState {
     return this.connectionState;
+  }
+
+  getTroubleshootingSteps(): string[] {
+    const steps: string[] = [];
+
+    if (this.connectionState.errorType === "no-lights" || this.connectionState.activeLights.length === 0) {
+      steps.push("Make sure your LIFX lights are powered on");
+      steps.push("Check that your computer and lights are on the same network");
+      steps.push("Try resetting your LIFX lights by unplugging and replugging them");
+    }
+
+    if (this.connectionState.errorType === "timeout" || this.connectionState.errorType === "connection-refused") {
+      steps.push("Check your network connection");
+      steps.push("Try disabling any VPN or firewall temporarily");
+      steps.push("Restart your router if needed");
+    }
+
+    if (!this.connectionState.httpAvailable) {
+      steps.push("Add an HTTP API token from https://cloud.lifx.com/settings as a fallback");
+    }
+
+    steps.push("Try restarting the extension by closing and reopening Raycast");
+    steps.push("Try increasing the LAN Discovery Timeout in preferences");
+
+    return steps;
+  }
+
+  getErrorDescription(): string {
+    if (!this.connectionState.lastError) {
+      return "";
+    }
+
+    let description = this.connectionState.lastError;
+
+    // Add troubleshooting hint
+    if (this.connectionState.errorType === "no-lights") {
+      description += "\n\n💡 Tip: Ensure lights are on the same WiFi network as your Mac";
+    } else if (this.connectionState.errorType === "timeout") {
+      description += "\n\n💡 Tip: Check that your lights are powered on and not in a power-saving mode";
+    } else if (this.connectionState.errorType === "connection-refused") {
+      description += "\n\n💡 Tip: Try disabling your VPN or checking firewall settings";
+    }
+
+    return description;
   }
 
   destroy(): void {

@@ -20,10 +20,12 @@ import { ProfileStorage } from "./lib/storage";
 import { LIFXLight, LightProfile, ProfileLightState } from "./lib/types";
 import { LightListItem } from "./components/LightListItem";
 import { LightGridItem } from "./components/LightGridItem";
+import { ConnectionStatus } from "./components/ConnectionStatus";
+import { TroubleshootingGuide } from "./components/TroubleshootingGuide";
 import { NaturalLanguageParser, ParsedCommand } from "./lib/nlp-parser";
 
 type ViewMode = "list" | "grid";
-type DashboardView = "lights" | "profiles" | "save-profile";
+type DashboardView = "lights" | "profiles" | "save-profile" | "troubleshoot";
 
 interface Preferences {
   httpApiToken?: string;
@@ -41,6 +43,7 @@ export default function Command() {
   const [storage] = useState(() => new ProfileStorage());
   const [nlpParser] = useState(() => new NaturalLanguageParser());
   const [searchText, setSearchText] = useState("");
+  const [connectionState, setConnectionState] = useState(client.getConnectionState());
   const preferences = getPreferenceValues<Preferences>();
 
   const { isLoading, revalidate } = usePromise(
@@ -48,21 +51,28 @@ export default function Command() {
       await client.initialize();
       const discoveredLights = await client.discoverLights();
       setLights(discoveredLights);
+      setConnectionState(client.getConnectionState());
 
       const savedProfiles = await storage.getProfiles();
       setProfiles(savedProfiles);
 
       const state = client.getConnectionState();
       if (discoveredLights.length === 0) {
+        const errorMsg = state.lastError || "No LIFX lights found";
         showToast({
           style: Toast.Style.Failure,
           title: "No lights discovered",
-          message: state.lanAvailable || state.httpAvailable ? "No LIFX lights found" : "Enable LAN or provide API token",
+          message: errorMsg,
+          primaryAction: {
+            title: "Troubleshoot",
+            onAction: () => setDashboardView("troubleshoot"),
+          },
         });
       } else {
         showToast({
           style: Toast.Style.Success,
           title: `Found ${discoveredLights.length} light${discoveredLights.length !== 1 ? "s" : ""}`,
+          message: `Connected via ${state.connectionType.toUpperCase()}`,
         });
       }
 
@@ -71,10 +81,16 @@ export default function Command() {
     [],
     {
       onError: (error) => {
+        const err = error as Error;
+        setConnectionState(client.getConnectionState());
         showToast({
           style: Toast.Style.Failure,
           title: "Failed to initialize",
-          message: error instanceof Error ? error.message : String(error),
+          message: err.message,
+          primaryAction: {
+            title: "Troubleshoot",
+            onAction: () => setDashboardView("troubleshoot"),
+          },
         });
       },
     }
@@ -92,16 +108,26 @@ export default function Command() {
       const discoveredLights = await client.discoverLights();
       console.log(`[UI] Setting ${discoveredLights.length} lights in state`);
       setLights(discoveredLights);
+      setConnectionState(client.getConnectionState());
+
+      const state = client.getConnectionState();
       showToast({
         style: Toast.Style.Success,
         title: `Refreshed - ${discoveredLights.length} light${discoveredLights.length !== 1 ? "s" : ""}`,
+        message: `Connected via ${state.connectionType.toUpperCase()}`,
       });
     } catch (error) {
       console.error(`[UI] Refresh failed:`, error);
+      setConnectionState(client.getConnectionState());
+      const err = error as Error;
       showToast({
         style: Toast.Style.Failure,
         title: "Failed to refresh lights",
-        message: error instanceof Error ? error.message : String(error),
+        message: err.message,
+        primaryAction: {
+          title: "Troubleshoot",
+          onAction: () => setDashboardView("troubleshoot"),
+        },
       });
     }
   }
@@ -421,7 +447,7 @@ export default function Command() {
     <ActionPanel.Section>
       <Action
         title={`Switch to ${viewMode === "list" ? "Grid" : "List"} View`}
-        icon={viewMode === "list" ? Icon.Grid : Icon.List}
+        icon={viewMode === "list" ? Icon.AppWindow : Icon.List}
         onAction={toggleViewMode}
         shortcut={{ modifiers: ["cmd"], key: "v" }}
       />
@@ -433,6 +459,12 @@ export default function Command() {
           await refreshProfiles();
         }}
         shortcut={{ modifiers: ["cmd"], key: "r" }}
+      />
+      <Action
+        title="Troubleshoot Connection"
+        icon={Icon.Gear}
+        onAction={() => setDashboardView("troubleshoot")}
+        shortcut={{ modifiers: ["cmd", "shift"], key: "t" }}
       />
     </ActionPanel.Section>
   );
@@ -483,6 +515,20 @@ export default function Command() {
       {commonActions}
     </>
   );
+
+  // Render Troubleshoot View
+  if (dashboardView === "troubleshoot") {
+    const troubleshootingSteps = client.getTroubleshootingSteps();
+    const state = client.getConnectionState();
+
+    return (
+      <TroubleshootingGuide
+        steps={troubleshootingSteps}
+        errorType={state.errorType}
+        onDismiss={() => setDashboardView("lights")}
+      />
+    );
+  }
 
   // Render Save Profile Form
   if (dashboardView === "save-profile") {
@@ -592,6 +638,11 @@ export default function Command() {
           lights.length === 0 && !isLoading ? (
             <ActionPanel>
               <Action title="Refresh" icon={Icon.ArrowClockwise} onAction={refreshLights} />
+              <Action
+                title="Troubleshoot Connection"
+                icon={Icon.Gear}
+                onAction={() => setDashboardView("troubleshoot")}
+              />
               {navigationActions}
               {commonActions}
             </ActionPanel>
@@ -601,8 +652,20 @@ export default function Command() {
         {lights.length === 0 && !isLoading ? (
           <Grid.EmptyView
             title="No LIFX Lights Found"
-            description="Make sure your lights are powered on and connected to the network"
+            description={connectionState.lastError || "Make sure your lights are powered on and connected to the network"}
             icon={Icon.LightBulb}
+            actions={
+              <ActionPanel>
+                <Action title="Refresh" icon={Icon.ArrowClockwise} onAction={refreshLights} />
+                <Action
+                  title="Troubleshoot Connection"
+                  icon={Icon.Gear}
+                  onAction={() => setDashboardView("troubleshoot")}
+                />
+                {navigationActions}
+                {commonActions}
+              </ActionPanel>
+            }
           />
         ) : (
           <>
@@ -647,6 +710,11 @@ export default function Command() {
         lights.length === 0 && !isLoading ? (
           <ActionPanel>
             <Action title="Refresh" icon={Icon.ArrowClockwise} onAction={refreshLights} />
+            <Action
+              title="Troubleshoot Connection"
+              icon={Icon.Gear}
+              onAction={() => setDashboardView("troubleshoot")}
+            />
             {navigationActions}
             {commonActions}
           </ActionPanel>
@@ -656,11 +724,32 @@ export default function Command() {
       {lights.length === 0 && !isLoading ? (
         <List.EmptyView
           title="No LIFX Lights Found"
-          description="Make sure your lights are powered on and connected to the network"
+          description={connectionState.lastError || "Make sure your lights are powered on and connected to the network"}
           icon={Icon.LightBulb}
+          actions={
+            <ActionPanel>
+              <Action title="Refresh" icon={Icon.ArrowClockwise} onAction={refreshLights} />
+              <Action
+                title="Troubleshoot Connection"
+                icon={Icon.Gear}
+                onAction={() => setDashboardView("troubleshoot")}
+              />
+              {navigationActions}
+              {commonActions}
+            </ActionPanel>
+          }
         />
       ) : (
         <>
+          <List.Section title="Connection">
+            <ConnectionStatus
+              lanAvailable={connectionState.lanAvailable}
+              httpAvailable={connectionState.httpAvailable}
+              connectionType={connectionState.connectionType}
+              discoveryStatus={connectionState.discoveryStatus}
+              lastError={connectionState.lastError}
+            />
+          </List.Section>
           {lights.length > 1 && (
             <List.Section title="All Lights">
               <List.Item
@@ -678,7 +767,7 @@ export default function Command() {
                       />
                       <Action
                         title="Turn All Off"
-                        icon={Icon.PowerOff}
+                        icon={Icon.XMarkCircle}
                         onAction={() => controlAllLights("off")}
                         shortcut={{ modifiers: ["ctrl", "shift"], key: "x" }}
                       />

@@ -38,7 +38,9 @@ export class LIFXLanClient {
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
         if (this.lights.size === 0) {
-          reject(new Error("No lights discovered via LAN"));
+          const error = new Error("No lights discovered via LAN");
+          (error as any).type = "no-lights";
+          reject(error);
         } else {
           resolve();
         }
@@ -52,7 +54,25 @@ export class LIFXLanClient {
         }
       });
 
-      this.client.init();
+      try {
+        this.client.init();
+      } catch (error) {
+        clearTimeout(timer);
+        const err = error as Error;
+        if ((err as any).code === "ECONNREFUSED") {
+          const connError = new Error("Connection refused - check if LIFX LAN service is running");
+          (connError as any).type = "connection-refused";
+          reject(connError);
+        } else if ((err as any).code === "ETIMEDOUT" || (err as any).code === "ENOTFOUND") {
+          const timeoutError = new Error("Network timeout - check network connection");
+          (timeoutError as any).type = "timeout";
+          reject(timeoutError);
+        } else {
+          const networkError = new Error(`Network error: ${error.message}`);
+          (networkError as any).type = "network-error";
+          reject(networkError);
+        }
+      }
     });
   }
 
@@ -67,10 +87,10 @@ export class LIFXLanClient {
    * Retry getState with exponential backoff
    */
   private async getStateWithRetry(id: string, lanLight: LifxLanLight): Promise<any> {
-    const maxRetries = this.retryAttempts;
+    const maxRetries = 5; // Fixed at 5 retries as per requirements
 
     for (let attempt = 0; attempt < maxRetries; attempt++) {
-      const timeout = this.stateTimeout * Math.pow(1.5, attempt); // Exponential backoff
+      const timeout = this.stateTimeout * Math.pow(1.5, attempt); // Exponential backoff for timeout
 
       const state = await new Promise<any>((resolve) => {
         const timer = setTimeout(() => {
@@ -93,8 +113,11 @@ export class LIFXLanClient {
       }
 
       // Wait before retry (except on last attempt)
+      // Exponential backoff: 1s, 2s, 4s, 8s, 16s
       if (attempt < maxRetries - 1) {
-        await this.sleep(500 * (attempt + 1)); // Progressive delay
+        const backoffDelay = 1000 * Math.pow(2, attempt);
+        console.log(`[LAN Discovery] Retrying ${id.substring(0, 8)} in ${backoffDelay}ms (attempt ${attempt + 1}/${maxRetries})`);
+        await this.sleep(backoffDelay);
       }
     }
 
