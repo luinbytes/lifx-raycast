@@ -55,4 +55,8 @@ export interface ConnectionState {
   httpAvailable: boolean;
   activeLights: LIFXLight[];
   lastDiscovery: Date | null;
+  discoveryStatus: "idle" | "running" | "success" | "error";
+  connectionType: "lan" | "http" | "none";
+  lastError?: string;
+  errorType?: "no-lights" | "timeout" | "connection-refused" | "network-error" | "unknown";
 }

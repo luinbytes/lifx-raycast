@@ -247,7 +247,7 @@ ${light.saturation > 0 ? `**Color Mode:** ${light.hue}° hue at ${light.saturati
           <ActionPanel.Section title="Power">
             <Action
               title={light.power ? "Turn Off" : "Turn On"}
-              icon={light.power ? Icon.PowerOff : Icon.Power}
+              icon={light.power ? Icon.XMarkCircle : Icon.Power}
               onAction={togglePower}
             />
           </ActionPanel.Section>
@@ -425,7 +425,7 @@ export function LightListItem({ light, client, onUpdate, onExecuteNlp }: Props) 
           <ActionPanel.Section title="Quick Actions">
             <Action
               title={light.power ? "Turn Off" : "Turn On"}
-              icon={light.power ? Icon.PowerOff : Icon.Power}
+              icon={light.power ? Icon.XMarkCircle : Icon.Power}
               onAction={togglePower}
               shortcut={{ modifiers: ["ctrl", "shift"], key: "p" }}
             />

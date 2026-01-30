@@ -69,7 +69,7 @@ export function ColorPicker({ light, client, onComplete }: Props) {
             content={{ value: color.icon, tooltip: color.label }}
             title={color.label}
             subtitle={`${color.hue}° • ${color.saturation}%`}
-            accessories={[isCurrent(color.hue, color.saturation) ? { tag: { value: "Current", color: Color.Green } } : {}]}
+            accessory={isCurrent(color.hue, color.saturation) ? { tag: { value: "Current", color: Color.Green } } : undefined}
             actions={
               <ActionPanel>
                 <Action title={`Set to ${color.label}`} onAction={() => setColor(color.hue, color.saturation, color.label)} />
@@ -85,7 +85,7 @@ export function ColorPicker({ light, client, onComplete }: Props) {
             content={{ value: color.icon, tooltip: color.label }}
             title={color.label}
             subtitle={`${color.hue}° • ${color.saturation}%`}
-            accessories={[isCurrent(color.hue, color.saturation) ? { tag: { value: "Current", color: Color.Green } } : {}]}
+            accessory={isCurrent(color.hue, color.saturation) ? { tag: { value: "Current", color: Color.Green } } : undefined}
             actions={
               <ActionPanel>
                 <Action title={`Set to ${color.label}`} onAction={() => setColor(color.hue, color.saturation, color.label)} />
