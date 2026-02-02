@@ -9,6 +9,13 @@ export interface LIFXLight {
   connected: boolean;
   source: "lan" | "http";
   reachable: boolean;
+  group?: string; // Group name if light belongs to a group
+}
+
+export interface LIFXScene {
+  id: string;
+  name: string;
+  description: string;
 }
 
 export interface LightProfile {

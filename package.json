@@ -12,6 +12,27 @@
       "subtitle": "LIFX",
       "description": "Control lights with natural language, manage profiles, and more",
       "mode": "view"
+    },
+    {
+      "name": "scene",
+      "title": "LIFX Scenes",
+      "subtitle": "LIFX",
+      "description": "Activate LIFX scenes for quick mood lighting",
+      "mode": "view"
+    },
+    {
+      "name": "lights",
+      "title": "All Lights Control",
+      "subtitle": "LIFX",
+      "description": "Turn all lights on or off at once",
+      "mode": "view"
+    },
+    {
+      "name": "group",
+      "title": "Light Groups",
+      "subtitle": "LIFX",
+      "description": "Control groups of lights by name",
+      "mode": "view"
     }
   ],
   "preferences": [
