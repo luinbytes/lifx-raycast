@@ -75,8 +75,8 @@ All actions have keyboard shortcuts for maximum efficiency:
 
 1. Clone this repository:
 ```bash
-git clone https://github.com/luinbytes/lifx.git
-cd lifx
+git clone https://github.com/luinbytes/lifx-raycast.git
+cd lifx-raycast
 ```
 
 2. Install dependencies:
