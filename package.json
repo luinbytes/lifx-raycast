@@ -12,6 +12,13 @@
       "subtitle": "LIFX",
       "description": "Control lights with natural language, manage profiles, and more",
       "mode": "view"
+    },
+    {
+      "name": "quick-presets",
+      "title": "Quick Presets",
+      "subtitle": "LIFX",
+      "description": "Activate lighting presets for common scenarios",
+      "mode": "view"
     }
   ],
   "preferences": [
