@@ -1,8 +1,8 @@
-import Lifx from "lifxjs";
+import Lifx, { LifxClient, LifxLight as LifxLightApi } from "lifxjs";
 import { LIFXLight, LightControl } from "./types";
 
 export class LIFXHttpClient {
-  private client: any;
+  private client: LifxClient | null = null;
 
   async initialize(apiToken: string): Promise<void> {
     if (!apiToken) {
@@ -13,9 +13,12 @@ export class LIFXHttpClient {
   }
 
   async getLights(): Promise<LIFXLight[]> {
-    const response = await this.client.get.all();
+    if (!this.client) {
+      throw new Error("HTTP client not initialized");
+    }
+    const response = await this.client.get.all() as LifxLightApi[];
 
-    return response.map((light: any) => ({
+    return response.map((light: LifxLightApi) => ({
       id: light.id,
       label: light.label,
       power: light.power === "on",
@@ -30,6 +33,10 @@ export class LIFXHttpClient {
   }
 
   async control(lightId: string, control: LightControl): Promise<void> {
+    if (!this.client) {
+      throw new Error("HTTP client not initialized");
+    }
+
     const duration = (control.duration ?? 1000) / 1000; // Convert to seconds
 
     // Handle power separately
@@ -45,8 +52,8 @@ export class LIFXHttpClient {
       control.kelvin !== undefined
     ) {
       // Get current light state to preserve unchanged values
-      const lights = await this.client.get.all();
-      const currentLight = lights.find((l: any) => l.id === lightId);
+      const lights = await this.client.get.all() as LifxLightApi[];
+      const currentLight = lights.find((l: LifxLightApi) => l.id === lightId);
 
       if (!currentLight) {
         throw new Error("Light not found");
@@ -57,7 +64,7 @@ export class LIFXHttpClient {
       // Preserve all values, only override what's specified
       colorConfig.hue = control.hue ?? Math.round(currentLight.color.hue);
       colorConfig.saturation = (control.saturation ?? Math.round(currentLight.color.saturation * 100)) / 100;
-      colorConfig.brightness = (control.brightness ?? Math.round(currentLight.brightness * 100)) / 100;
+      colorConfig.brightness = (control.brightness ?? Math.round(currentLight.color.brightness * 100)) / 100;
       colorConfig.kelvin = control.kelvin ?? currentLight.color.kelvin;
 
       await this.client.color.light(lightId, colorConfig);
