@@ -1,4 +1,4 @@
-import { LIFXLight, LightProfile, ProfileLightState } from "./lib/types";
+import { LIFXLight, LightProfile } from "./lib/types";
 
 export interface LightPreset {
   id: string;
@@ -124,10 +124,7 @@ export const BUILT_IN_PRESETS: LightPreset[] = [
 /**
  * Apply a preset to a list of lights
  */
-export function applyPresetToLights(
-  preset: LightPreset,
-  lights: LIFXLight[],
-): Promise<void> {
+export function applyPresetToLights(preset: LightPreset, lights: LIFXLight[]): Promise<void> {
   // For each light in the preset
   for (const presetLight of preset.lights) {
     // Apply to all lights (or could be mapped to specific lights)
@@ -159,7 +156,7 @@ export function presetToProfile(preset: LightPreset, lights: LIFXLight[]): Light
     tags: ["preset", preset.category.toLowerCase()],
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
-    lights: lights.map(light => ({
+    lights: lights.map((light) => ({
       lightId: light.id,
       lightLabel: light.label || light.id,
       power: preset.lights[0]?.power || false,
@@ -175,14 +172,14 @@ export function presetToProfile(preset: LightPreset, lights: LIFXLight[]): Light
  * Get preset by ID
  */
 export function getPresetById(id: string): LightPreset | undefined {
-  return BUILT_IN_PRESETS.find(preset => preset.id === id);
+  return BUILT_IN_PRESETS.find((preset) => preset.id === id);
 }
 
 /**
  * Get presets by category
  */
 export function getPresetsByCategory(category: LightPreset["category"]): LightPreset[] {
-  return BUILT_IN_PRESETS.filter(preset => preset.category === category);
+  return BUILT_IN_PRESETS.filter((preset) => preset.category === category);
 }
 
 /**
@@ -190,10 +187,11 @@ export function getPresetsByCategory(category: LightPreset["category"]): LightPr
  */
 export function searchPresets(query: string): LightPreset[] {
   const lowerQuery = query.toLowerCase();
-  return BUILT_IN_PRESETS.filter(preset =>
-    preset.name.toLowerCase().includes(lowerQuery) ||
-    preset.description.toLowerCase().includes(lowerQuery) ||
-    preset.category.toLowerCase().includes(lowerQuery)
+  return BUILT_IN_PRESETS.filter(
+    (preset) =>
+      preset.name.toLowerCase().includes(lowerQuery) ||
+      preset.description.toLowerCase().includes(lowerQuery) ||
+      preset.category.toLowerCase().includes(lowerQuery),
   );
 }
 

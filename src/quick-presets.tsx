@@ -1,32 +1,16 @@
-import {
-  List,
-  ActionPanel,
-  Action,
-  Icon,
-  Toast,
-  showToast,
-  Color,
-  confirmAlert,
-} from "@raycast/api";
+import { List, ActionPanel, Action, Icon, Toast, showToast, Color } from "@raycast/api";
 import { useState } from "react";
 import { usePromise } from "@raycast/utils";
 import { LIFXClientManager } from "./lib/lifx-client";
 import { LIFXLight } from "./lib/types";
-import {
-  BUILT_IN_PRESETS,
-  applyPresetToLights,
-  presetToProfile,
-  searchPresets,
-  getPresetCategories,
-  LightPreset,
-} from "./presets";
+import { BUILT_IN_PRESETS, applyPresetToLights, searchPresets, getPresetCategories, LightPreset } from "./presets";
 
 export default function Command() {
   const [lights, setLights] = useState<LIFXLight[]>([]);
   const [searchText, setSearchText] = useState("");
   const [client] = useState(() => new LIFXClientManager());
 
-  const { isLoading, revalidate } = usePromise(
+  const { isLoading } = usePromise(
     async () => {
       await client.initialize();
       const discoveredLights = await client.discoverLights();
@@ -42,12 +26,10 @@ export default function Command() {
           message: error instanceof Error ? error.message : String(error),
         });
       },
-    }
+    },
   );
 
-  const filteredPresets = searchText
-    ? searchPresets(searchText)
-    : BUILT_IN_PRESETS;
+  const filteredPresets = searchText ? searchPresets(searchText) : BUILT_IN_PRESETS;
 
   async function activatePreset(preset: LightPreset) {
     if (lights.length === 0) {
@@ -98,30 +80,22 @@ export default function Command() {
   return (
     <List isLoading={isLoading} searchBarPlaceholder="Search presets..." onSearchTextChange={setSearchText}>
       {filteredPresets.length === 0 ? (
-        <List.EmptyView
-          title="No Presets Found"
-          description="Try a different search term"
-          icon={Icon.Sparkle}
-        />
+        <List.EmptyView title="No Presets Found" description="Try a different search term" icon={Icon.Sparkle} />
       ) : (
-        categories.map(category => {
-          const categoryPresets = filteredPresets.filter(
-            p => p.category === category
-          );
+        categories.map((category) => {
+          const categoryPresets = filteredPresets.filter((p) => p.category === category);
 
           if (categoryPresets.length === 0) return null;
 
           return (
             <List.Section key={category} title={category} subtitle={`${categoryPresets.length} presets`}>
-              {categoryPresets.map(preset => (
+              {categoryPresets.map((preset) => (
                 <List.Item
                   key={preset.id}
                   title={preset.name}
                   subtitle={preset.description}
                   icon={getIconForPreset(preset.icon)}
-                  accessories={[
-                    { tag: { value: preset.category, color: getColorForCategory(preset.category) } },
-                  ]}
+                  accessories={[{ tag: { value: preset.category, color: getColorForCategory(preset.category) } }]}
                   actions={
                     <ActionPanel>
                       <Action
@@ -161,21 +135,21 @@ export default function Command() {
 function getIconForPreset(icon: LightPreset["icon"]): Icon {
   const iconMap: Record<LightPreset["icon"], Icon> = {
     "game-controller": Icon.GameController,
-    "text": Icon.Text,
-    "focus": Icon.MagnifyingGlass,
-    "film": Icon.FilmStrip,
-    "moon": Icon.Moon,
+    text: Icon.Text,
+    focus: Icon.MagnifyingGlass,
+    film: Icon.FilmStrip,
+    moon: Icon.Moon,
   };
   return iconMap[icon] || Icon.LightBulb;
 }
 
 function getColorForCategory(category: LightPreset["category"]): Color {
   const colorMap: Record<LightPreset["category"], Color> = {
-    "Gaming": Color.Blue,
-    "Reading": Color.Green,
-    "Focus": Color.Yellow,
-    "Movie": Color.Purple,
-    "Chill": Color.Orange,
+    Gaming: Color.Blue,
+    Reading: Color.Green,
+    Focus: Color.Yellow,
+    Movie: Color.Purple,
+    Chill: Color.Orange,
   };
   return colorMap[category] || Color.SecondaryText;
 }
